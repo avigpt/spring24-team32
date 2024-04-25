@@ -105,7 +105,7 @@ class ModBot(discord.Client):
 
         # Forward the message to the mod channel
         mod_channel = self.mod_channels[message.guild.id]
-        await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"\nThe bot is on test_branch!!')
+        await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"\nThe bot is on test_branch!!!')
         scores = self.eval_text(message.content)
         await mod_channel.send(self.code_format(scores))
 
