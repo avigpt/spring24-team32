@@ -7,8 +7,11 @@ class State(Enum):
     AWAITING_MESSAGE = auto()
     MESSAGE_IDENTIFIED = auto()
     REPORT_COMPLETE = auto()
+    CLASSIFIED_1 = auto() # For first level of flow
+    CLASSIFIED_2 = auto() # For second level of flow
+    FURTHEST_IMPLEMENTATION = auto()
 
-class Report:
+class Report():
     START_KEYWORD = "report"
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
@@ -17,7 +20,8 @@ class Report:
         self.state = State.REPORT_START
         self.client = client
         self.message = None
-    
+        self.report_data = {} # Keeps track of report's message, the person who sent it, and all report classifiers
+
     async def handle_message(self, message):
         '''
         This function makes up the meat of the user-side reporting flow. It defines how we transition between states and what 
@@ -49,19 +53,100 @@ class Report:
             if not channel:
                 return ["It seems this channel was deleted or never existed. Please try again or say `cancel` to cancel."]
             try:
-                message = await channel.fetch_message(int(m.group(3)))
+                reported_message = await channel.fetch_message(int(m.group(3)))
             except discord.errors.NotFound:
                 return ["It seems this message was deleted or never existed. Please try again or say `cancel` to cancel."]
 
-            # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
-            return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-                    "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
-        
-        if self.state == State.MESSAGE_IDENTIFIED:
-            return ["<insert rest of reporting flow here>"]
+            # ADDED: Sends a message with the instructions for classifying part 1
+            reaction_message = await message.channel.send(
+                "This is the message:" + "```" + reported_message.author.name + ": " + reported_message.content + "```" +
+                "\nWhy are you reporting this message?\n" +
+                "1️⃣: Sexual Threat\n" +
+                "2️⃣: Offensive Content\n" +
+                "3️⃣: Spam/Scam\n" +
+                "4️⃣: Imminent Danger\n"
+            )
 
+            self.report_data["name"] = reported_message.author.name
+            self.report_data["content"] = reported_message.content
+
+            # Add reactions
+            await reaction_message.add_reaction("1️⃣")
+            await reaction_message.add_reaction("2️⃣")
+            await reaction_message.add_reaction("3️⃣")
+            await reaction_message.add_reaction("4️⃣")
+
+            return []
+        if self.state == State.FURTHEST_IMPLEMENTATION:
+            return [f"This is the furthest the bot has been implemented.\nCurrent Report: {self.report_data}"]
         return []
+
+    # TODO: Function that handles reactions. 
+    # When a reaction is sent to a report bot.py routes that logic here (refer to on_raw_reaction_add() in bot.py).
+    # It first classifies identified messages and then goes layer by layer following the user flow. Each if/elif clause
+    # captures the following step in the user flow and is represented by State constant.
+
+    # Things are in the past tense. So State.MESSAGE_INDENTIFIED means that classifying part 1 is being worked on. State.CLASSIFIED_1 means
+    # classifying part 1 is done and classifying part 2 is happening. I (Cristobal) did not make this convention it is part of the assignment.
+    async def handle_reaction(self, reaction):
+        # TODO: All of them call self.reply_sexual_threat because that is the only classifying part 2 function implemented. 
+        # They should all call their respective reply functions.
+        if self.state == State.MESSAGE_IDENTIFIED: # Classifying Part 1
+            if reaction.emoji.name == "1️⃣":
+                self.report_data["class_1"] = "Sexual Threat"
+                await self.reply_sexual_threat(reaction)
+            elif reaction.emoji.name == "2️⃣":
+                self.report_data["class_1"] = "Offensive Content"
+                await self.reply_sexual_threat(reaction)
+            elif reaction.emoji.name == "3️⃣":
+                self.report_data["class_1"] = "Spam/Scam"
+                await self.reply_sexual_threat(reaction)
+            elif reaction.emoji.name == "4️⃣":
+                self.report_data["class_1"] = "Imminent Danger"
+                await self.reply_sexual_threat(reaction)
+            else:
+                return
+            self.state = State.CLASSIFIED_1
+        elif self.state == State.CLASSIFIED_1: # Classifying Part 2
+            if self.report_data["class_1"] == "Sexual Threat":
+                await self.classify_sexual_threat(reaction)
+            else:
+                await self.classify_sexual_threat(reaction)
+            self.state = State.FURTHEST_IMPLEMENTATION
+            
+    # TODO: Sends the message that asks to classify Sexual Threats
+    # This is the second classification for Sexual Threats. All classifications will need
+    # a classification like this
+    async def reply_sexual_threat(self, reaction):
+        channel = await self.client.fetch_channel(reaction.channel_id)
+        reply = "Selected Category: "
+        reply += "Sexual Threat\n"
+        reply += "What is being requested\n"
+
+        reaction_message = await channel.send(
+            reply +
+            "1️⃣: Nude Content\n" +
+            "2️⃣: Financial Payment\n"
+        )
+
+        await reaction_message.add_reaction("1️⃣")
+        await reaction_message.add_reaction("2️⃣")
+
+    # TODO: All of these need to be implemented to mimic the branching in the user flow and
+    # send out messages. reply_sexual_threat() is an example.
+    async def reply_offensive_content(self, reaction):
+        pass
+    async def reply_scam_spam_content(self, reaction):
+        pass
+    async def reply_imminent_danger_content(self, reaction):
+        pass
+
+    # ADDED: Current just sends a message saying that this is the furthest implementation
+    # Should classify between Nude Content and Financial Payment
+    async def classify_sexual_threat(self, reaction):
+        channel = await self.client.fetch_channel(reaction.channel_id)
+        await channel.send(f"This is the furthest the bot has been implemented.\nCurrent Report: {self.report_data}")
 
     def report_complete(self):
         return self.state == State.REPORT_COMPLETE
