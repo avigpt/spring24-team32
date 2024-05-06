@@ -1,4 +1,5 @@
 from enum import Enum, auto
+import asyncio
 import discord
 import re
 
@@ -60,7 +61,7 @@ class Report():
             self.state = State.MESSAGE_IDENTIFIED
             # ADDED: Sends a message with the instructions for classifying part 1
             reaction_message = await message.channel.send(
-                "This is the message:" + "```" + reported_message.author.name + ": " + reported_message.content + "```" +
+                "This is the author and their message we found:" + "```" + reported_message.author.name + ": " + reported_message.content + "```" +
                 "\nWhy are you reporting this message?\n" +
                 "1️⃣: Sexual Threat\n" +
                 "2️⃣: Offensive Content\n" +
@@ -94,25 +95,23 @@ class Report():
         # They should all call their respective reply functions.
         if self.state == State.MESSAGE_IDENTIFIED: # Classifying Part 1
             if reaction.emoji.name == "1️⃣":
-                self.report_data["class_1"] = "Sexual Threat"
+                self.report_data["report_reason"] = "Sexual Threat"
                 await self.reply_sexual_threat(reaction)
             elif reaction.emoji.name == "2️⃣":
-                self.report_data["class_1"] = "Offensive Content"
-                await self.reply_sexual_threat(reaction)
+                return
             elif reaction.emoji.name == "3️⃣":
-                self.report_data["class_1"] = "Spam/Scam"
-                await self.reply_sexual_threat(reaction)
+                return
             elif reaction.emoji.name == "4️⃣":
-                self.report_data["class_1"] = "Imminent Danger"
-                await self.reply_sexual_threat(reaction)
+                return
             else:
                 return
             self.state = State.CLASSIFIED_1
+
         elif self.state == State.CLASSIFIED_1: # Classifying Part 2
-            if self.report_data["class_1"] == "Sexual Threat":
+            if self.report_data["report_reason"] == "Sexual Threat":
                 await self.classify_sexual_threat(reaction)
             else:
-                await self.classify_sexual_threat(reaction)
+                await self.classify_sexual_threat(reaction) #TODO: Update based on the other classifications.
             self.state = State.FURTHEST_IMPLEMENTATION
             
     # TODO: Sends the message that asks to classify Sexual Threats
@@ -120,18 +119,13 @@ class Report():
     # a classification like this
     async def reply_sexual_threat(self, reaction):
         channel = await self.client.fetch_channel(reaction.channel_id)
-        reply = "Selected Category: "
-        reply += "Sexual Threat\n"
-        reply += "What is being requested\n"
 
-        reaction_message = await channel.send(
-            reply +
-            "1️⃣: Nude Content\n" +
-            "2️⃣: Financial Payment\n"
-        )
+        # Request further details.
+        cont = await self.sender_demand(channel)
+        if not cont: return
+        await self.sender_threat(channel)
 
-        await reaction_message.add_reaction("1️⃣")
-        await reaction_message.add_reaction("2️⃣")
+        
 
     # TODO: All of these need to be implemented to mimic the branching in the user flow and
     # send out messages. reply_sexual_threat() is an example.
@@ -142,6 +136,69 @@ class Report():
     async def reply_imminent_danger_content(self, reaction):
         pass
 
+    # Called for "Sexual Threat" classification to understand sender's demand. 
+    async def sender_demand(self, channel):
+        reply = "Selected Category: "
+        reply += "Sexual Threat"
+        await channel.send(reply)
+
+        demand_message = await channel.send(
+            "What is the sender's demand? \n"
+            "1️⃣: Nude Content\n" +
+            "2️⃣: Financial Payment\n" +
+            "3️⃣: Sexual Service\n" +
+            "4️⃣: Other\n"
+        )
+        await demand_message.add_reaction("1️⃣")
+        await demand_message.add_reaction("2️⃣")
+        await demand_message.add_reaction("3️⃣")
+        await demand_message.add_reaction("4️⃣")
+
+        try:
+            reaction = await self.client.wait_for('reaction_add', check = None, timeout = 30.0)
+            if reaction[0] == "1️⃣":
+                self.report_data["sender_demand"] = "Nude Content"
+                print(self.report_data)
+            elif reaction[0] == "2️⃣":
+                self.report_data["sender_demand"] = "Financial Payment"
+            elif reaction[0] == "3️⃣":
+                self.report_data["sender_demand"] = "Sexual Service"
+            elif reaction[0] == "4️⃣":
+                self.report_data["sender_demand"] = "Other"
+            else: 
+                return False
+        except asyncio.TimeoutError:
+            await channel.send("No reaction detected. Cancelling report.")
+            self.state = State.REPORT_COMPLETE
+            return False
+        return True
+    
+    # Called for "Sexual Threat" classification to understand sender's threat.
+    async def sender_threat(self, channel):
+        threat_message = await channel.send(
+            "Got it, thanks. One more question: what is the sender's threat? \n"
+            "1️⃣: Physical Threat \n" +
+            "2️⃣: Release Sensitive or Explicit Material \n" +
+            "3️⃣: Unclear \n"
+        )
+        await threat_message.add_reaction("1️⃣")
+        await threat_message.add_reaction("2️⃣")
+        await threat_message.add_reaction("3️⃣")
+
+        try:
+            reaction = await self.client.wait_for('reaction_add', check = None, timeout = 30.0)
+            if reaction.emoji.name == "1️⃣":
+                self.report_data["sender_threat"] = "Physical Threat"
+            elif reaction.emoji.name == "2️⃣":
+                self.report_data["sender_threat"] = "Release Sensitive or Explicit Material"
+            elif reaction.emoji.name == "3️⃣":
+                self.report_data["sender_threat"] = "Unclear"
+            else:
+                return
+        except asyncio.TimeoutError:
+            await channel.send("No reaction detected. Please select one of the options or type 'cancel'.")
+        
+        
     # ADDED: Current just sends a message saying that this is the furthest implementation
     # Should classify between Nude Content and Financial Payment
     async def classify_sexual_threat(self, reaction):
