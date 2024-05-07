@@ -98,9 +98,11 @@ class Report():
                 self.report_data["report_reason"] = "Sexual Threat"
                 await self.reply_sexual_threat(reaction)
             elif reaction.emoji.name == "2️⃣":
-                return
+                self.report_data["report_reason"] = "Offensive Content"
+                await self.reply_offensive_content(reaction)
             elif reaction.emoji.name == "3️⃣":
-                return
+                self.report_data["report_reason"] = "Spam/Scam"
+                await self.reply_scam_spam_content(reaction)
             elif reaction.emoji.name == "4️⃣":
                 return
             else:
@@ -110,10 +112,19 @@ class Report():
         elif self.state == State.CLASSIFIED_1: # Classifying Part 2
             if self.report_data["report_reason"] == "Sexual Threat":
                 await self.classify_sexual_threat(reaction)
+            elif self.report_data["report_reason"] == "Offensive Content":
+                await self.classify_offensive_content(reaction)
+            elif self.report_data["report_reason"] == "Spam/Scam": 
+                await self.classify_spam_scam_content(reaction)
             else:
-                await self.classify_sexual_threat(reaction) #TODO: Update based on the other classifications.
+                return #TODO: Update based on the other classifications.
             self.state = State.FURTHEST_IMPLEMENTATION
             
+    ################################################################################################
+    # Below is the code that makes all the function calls for each respective classification, which is 
+    # called above when the user specifies why they are reporting the content. 
+    ################################################################################################
+    
     # TODO: Sends the message that asks to classify Sexual Threats
     # This is the second classification for Sexual Threats. All classifications will need
     # a classification like this
@@ -125,16 +136,110 @@ class Report():
         if not cont: return
         await self.sender_threat(channel)
 
-        
-
     # TODO: All of these need to be implemented to mimic the branching in the user flow and
     # send out messages. reply_sexual_threat() is an example.
     async def reply_offensive_content(self, reaction):
-        pass
+        channel = await self.client.fetch_channel(reaction.channel_id)
+        
+        # Request further details.
+        cont = await self.offensive_content_type(channel)
+        # TODO: do we need to store the type of content they specified? As of now, it just detects if the 
+        # user specifies a content type and then immediately displays the message below
+        reply = "The content moderation team will review the content. Further actions may include removal of the post and/or account."
+        await channel.send(reply)
+        
     async def reply_scam_spam_content(self, reaction):
-        pass
+        channel = await self.client.fetch_channel(reaction.channel_id)
+        
+        # Request further details.
+        cont = await self.spam_scam_content_type(channel)
+        reply = "The content moderation team will review the content. Further actions may include removal of the post and/or account."
+        await channel.send(reply)
+        
     async def reply_imminent_danger_content(self, reaction):
         pass
+    
+    ################################################################################################
+    # Below is code for the Offensive Content classification:
+    ################################################################################################
+    
+    # Called for "Offensive Content" classification to understand the type of content seen.
+    async def offensive_content_type(self, channel): 
+        reply = "Selected Category: "
+        reply += "Offensive Content"
+        await channel.send(reply)
+        
+        content_message = await channel.send(
+            "Please select the type of offensive content.\n"
+            "1️⃣: Violent Content\n" +
+            "2️⃣: Hateful Content\n" +
+            "3️⃣: Pornography\n"
+        )
+        
+        await content_message.add_reaction("1️⃣")
+        await content_message.add_reaction("2️⃣")
+        await content_message.add_reaction("3️⃣")
+        
+        try:
+            reaction = await self.client.wait_for('reaction_add', check = None, timeout = 30.0)
+            if reaction[0].emoji == "1️⃣":
+                self.report_data["offensive_content_type"] = "Violent Content"
+                print(self.report_data)
+            elif reaction[0].emoji == "2️⃣":
+                self.report_data["offensive_content_type"] = "Hateful Content"
+            elif reaction[0].emoji == "3️⃣":
+                self.report_data["offensive_content_type"] = "Pornography"
+            else: 
+                return False
+        except asyncio.TimeoutError:
+            await channel.send("No reaction detected. Cancelling report.")
+            self.state = State.REPORT_COMPLETE
+            return False
+        return True
+    
+    
+    ################################################################################################
+    # Below is the code for the Spam/Scam classification
+    ################################################################################################
+    
+    # Called for "Spam/Scam" classification to understand the type of content seen.
+    async def spam_scam_content_type(self, channel): 
+        reply = "Selected Category: "
+        reply += "Spam/Scam"
+        await channel.send(reply)
+        
+        content_message = await channel.send(
+            "Please select the type of spam/scam.\n"
+            "1️⃣: Spam\n" +
+            "2️⃣: Fraud\n" +
+            "3️⃣: Impersonation or Fake Account\n"
+        )
+        
+        await content_message.add_reaction("1️⃣")
+        await content_message.add_reaction("2️⃣")
+        await content_message.add_reaction("3️⃣")
+        
+        try:
+            reaction = await self.client.wait_for('reaction_add', check = None, timeout = 30.0)
+            if reaction[0].emoji == "1️⃣":
+                self.report_data["spam_scam_content_type"] = "Spam"
+                print(self.report_data)
+            elif reaction[0].emoji == "2️⃣":
+                self.report_data["spam_scam_content_type"] = "Fraud"
+            elif reaction[0].emoji == "3️⃣":
+                self.report_data["spam_scam_content_type"] = "Impersonation or Fake Account"
+            else: 
+                return False
+        except asyncio.TimeoutError:
+            await channel.send("No reaction detected. Cancelling report.")
+            self.state = State.REPORT_COMPLETE
+            return False
+        return True
+        
+    
+    ################################################################################################
+    # Below is the code for the Sexual Threat classification
+    ################################################################################################
 
     # Called for "Sexual Threat" classification to understand sender's demand. 
     async def sender_demand(self, channel):
@@ -197,11 +302,22 @@ class Report():
                 return
         except asyncio.TimeoutError:
             await channel.send("No reaction detected. Please select one of the options or type 'cancel'.")
-        
+            
+    
         
     # ADDED: Current just sends a message saying that this is the furthest implementation
     # Should classify between Nude Content and Financial Payment
+    
+    # Note from Riley: it's still unclear to me when the "this is the furthest..." message gets called?
     async def classify_sexual_threat(self, reaction):
+        channel = await self.client.fetch_channel(reaction.channel_id)
+        await channel.send(f"This is the furthest the bot has been implemented.\nCurrent Report: {self.report_data}")
+
+    async def classify_offensive_content(self, reaction):
+        channel = await self.client.fetch_channel(reaction.channel_id)
+        await channel.send(f"This is the furthest the bot has been implemented.\nCurrent Report: {self.report_data}")
+    
+    async def classify_spam_scam_content(self, reaction):
         channel = await self.client.fetch_channel(reaction.channel_id)
         await channel.send(f"This is the furthest the bot has been implemented.\nCurrent Report: {self.report_data}")
 
