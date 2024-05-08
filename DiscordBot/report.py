@@ -77,6 +77,7 @@ class Report:
             self.state = State.MESSAGE_IDENTIFIED
             await self.reply_message_id(message, fetched_message)
 
+        # Collect additional context for sexual threat reports.
         if self.state == State.CATEGORY_IDENTIFIED and self.report_data["category"] == Category.SEXUAL_THREAT and self.level == Level.L5:
             self.report_data["context_content"] = message.content
             await self.block_option(message.channel)
@@ -123,21 +124,19 @@ class Report:
         if self.report_data["category"] == Category.SEXUAL_THREAT:
             if self.level == Level.L1:
                 self.level = Level.L2
-                await self.sexual_threat_l1(reaction, channel) 
+                await self.sexual_threat_l1(channel) 
             elif self.level == Level.L2:
                 self.level = Level.L3
                 await channel.send(await self.store_demand(reaction))
-                await self.sexual_threat_l2(reaction, channel)
+                await self.sexual_threat_l2(channel)
             elif self.level == Level.L3:
                 self.level = Level.L4
                 await channel.send(await self.store_threat(reaction))
-                await self.sexual_threat_l3(reaction, channel)
+                await self.sexual_threat_l3(channel)
             elif self.level == Level.L4:
                 self.level = Level.L5
                 await self.collect_context_decision(reaction, channel)
-                
-            # Context (if any) collected as a message. 
-
+                # Context (if any) collected as a message. 
 
         ## Category: Offensive Content ##
         elif self.report_data["category"] == Category.OFFENSIVE_CONTENT:
@@ -149,7 +148,17 @@ class Report:
 
         ## Category: Danger ##
         elif self.report_data["category"] == Category.DANGER:
-            print("To implement: Danger flow.")
+            await channel.send("If someone is in immediate danger, please get help before reporting. Don't wait.")
+            if self.level == Level.L1:
+                self.level = Level.L2
+                await self.danger_l1(channel)
+            elif self.level == Level.L2:
+                self.level = Level.L3
+                await self.collect_danger_type(reaction)
+                await self.danger_l2(channel)
+            elif self.level == Level.L3:
+                self.level = Level.L4
+                await self.danger_l3()
 
         else:
             channel.send("Invalid reaction. Please answer the most recent question. Type 'cancel' to start over.")
@@ -170,7 +179,8 @@ class Report:
         
         return f"Thank you. We've logged the category as \"{self.category_to_string()}.\""
     
-    async def sexual_threat_l1(self, reaction, channel):
+    ## Sexual Threat Flow ##
+    async def sexual_threat_l1(self, channel):
         '''
         Called in category SEXUAL_THREAT and state L1.
         This function asks the user to provide more detail; specifically, for sender demand. 
@@ -205,7 +215,7 @@ class Report:
         
         return f"Thank you. We've logged the demand as \"{self.report_data['demand']}\"."
     
-    async def sexual_threat_l2(self, reaction, channel):
+    async def sexual_threat_l2(self, channel):
         '''
         Called in category SEXUAL_THREAT and state L2.
         This function asks the user to provide more detail; specifically, for sender threat. 
@@ -236,7 +246,7 @@ class Report:
         return f"Thank you. We've logged the threat as \"{self.report_data['threat']}\"."
 
 
-    async def sexual_threat_l3(self, reaction, channel):
+    async def sexual_threat_l3(self, channel):
         '''
         Called in category SEXUAL_THREAT and state L3.
         Asks user if they want to give additional context. 
@@ -263,7 +273,55 @@ class Report:
             self.report_data["context"] = "No"
             await self.block_option(channel)
 
+    ## Danger Flow ##
 
+    async def danger_l1(self, channel):
+        '''
+        Called in category DANGER and state L1.
+        This function asks the user to provide more detail; specifically, for the nature of the danger. 
+        '''
+        danger_message = await channel.send(
+            "When you are ready to continue, please select the nature of the danger?\n" +
+            "1️⃣: Safety Threat\n" +
+            "2️⃣: Criminal Behavior\n"
+        )
+        await danger_message.add_reaction("1️⃣")
+        await danger_message.add_reaction("2️⃣")
+
+    async def collect_danger_type(self, reaction):
+        '''
+        This function is called in category DANGER and state L2.
+        It stores the user's response to the danger question (L1). 
+        '''
+        if reaction.emoji.name == "1️⃣":
+            self.report_data["danger_type"] = "Safety Threat"
+        elif reaction.emoji.name == "2️⃣":
+            self.report_data["danger_type"] = "Criminal Behavior"
+        
+        return f"Thank you. We've logged the danger type as \"{self.report_data['danger_type']}\"."
+
+    async def danger_l2(self, channel):
+        '''
+        Called in category DANGER and state L2.
+        This function asks the user to provide more detail based on the danger type.
+        '''
+        if self.report_data["danger_type"] == "Safety Threat":
+            safety_message = await channel.send(
+                "Please select the type of safety threat.\n" +
+                "1️⃣: Suicide/Self-Harm\n" +
+                "2️⃣: Violence\n"
+            )
+            await safety_message.add_reaction("1️⃣")
+            await safety_message.add_reaction("2️⃣")
+
+        elif self.report_data["danger_type"] == "Criminal Behavior":
+            criminal_message = await channel.send(
+                "Please select the type of criminal behavior.\n" +
+                "1️⃣: Theft/Robbery\n" +
+                "2️⃣: Child Abuse\n" +
+                "3️⃣: Human Exploitation"
+            )
+        
     ### Helper Functions ###
 
     def category_to_string(self):
