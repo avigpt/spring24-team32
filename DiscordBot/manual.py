@@ -12,6 +12,7 @@ One idea could be to keep track of a pointer to the message_id of the next messa
 bot.py to use in on_raw_reaction_add().
 3. Reports that are canceled should be ignored. Cannot be done until user flow is finished.
 4. Format incoming reports in group-32-mod channel. Show priority.
+5. The severity 1 flow is simplifed to just return no abuse instead of checking for fake report and looping. Should revisit.
 '''
 
 class State(Enum):
@@ -63,30 +64,36 @@ class ManualReview:
         elif self.state == State.ABUSE_IDENTIFIED:
             await self.mod_channel.send(await self.store_category(reaction))
             self.state = State.CATEGORY_IDENTIFIED
+
+        # Returns early if State.CATEGORY_IDENTIFIED is not the current state
+        if self.state != State.CATEGORY_IDENTIFIED:
+            return False
         
+        # Runs once self.state is State.CATEGORY_INDENFIFIED
+        if self.review_data["category"] == Category.SEXUAL_THREAT:
+            # TODO: Follow flow
+            # DELETE WHEN ABOVE IS IMPLEMENTED
+            await self.mod_channel.send(f"To implement: Sexual Threat")
+        elif self.review_data["category"] == Category.OFFENSIVE_CONTENT:
+            # TODO: Follow flow
+            # DELETE WHEN ABOVE IS IMPLEMENTED
+            await self.mod_channel.send(f"To implement: Offensive Content")
+        elif self.review_data["category"] == Category.SPAM_SCAM:
+            # TODO: Follow flow
+            # DELETE WHEN ABOVE IS IMPLEMENTED
+            await self.mod_channel.send(f"To implement: Spam/Scam")
+        elif self.review_data["category"] == Category.DANGER:
+            if self.level == Level.L1:
+                await self.reply_severity()
+                self.level = Level.L2
+            elif self.level == Level.L2:
+                await self.mod_channel.send(await self.severity_l2(reaction))
+                self.state = State.REVIEW_COMPLETE
+        
+        # Runs when Review is complete and it outputs the determined actions
         if self.state == State.REVIEW_COMPLETE:
             await self.mod_channel.send(await self.determine_action())
             return True
-        
-        # Runs once self.state is State.CATEGORY_INDENFIFIED
-        if self.state == State.CATEGORY_IDENTIFIED:
-            if self.review_data["category"] == Category.SEXUAL_THREAT:
-                # TODO: Follow flow
-                # DELETE WHEN ABOVE IS IMPLEMENTED
-                await self.mod_channel.send(f"To implement: Sexual Threat")
-            elif self.review_data["category"] == Category.OFFENSIVE_CONTENT:
-                # TODO: Follow flow
-                # DELETE WHEN ABOVE IS IMPLEMENTED
-                await self.mod_channel.send(f"To implement: Offensive Content")
-            elif self.review_data["category"] == Category.SPAM_SCAM:
-                # TODO: Follow flow
-                # DELETE WHEN ABOVE IS IMPLEMENTED
-                await self.mod_channel.send(f"To implement: Spam/Scam")
-            elif self.review_data["category"] == Category.DANGER:
-                # TODO: Follow flow
-                # DELETE WHEN ABOVE IS IMPLEMENTED
-                await self.mod_channel.send(f"To implement: Danger")
-
 
         return False
 
@@ -96,7 +103,7 @@ class ManualReview:
         It asks the question of whether the message is legitimate abuse AKA is the report real.
         '''
         legitimate_abuse_message = await self.mod_channel.send(
-            "Question #?: Is this legitimate abuse? \n"
+            "Question #1: Is this legitimate abuse? \n"
             "👍: Yes\n\n" +
             "👎: No\n"
         )
@@ -125,7 +132,7 @@ class ManualReview:
         This function asks the user to categorize the message. 
         '''
         reaction_message = await self.mod_channel.send(
-            "What type of abuse is this message?\n" +
+            "Question #2: What type of abuse is this message?\n" +
             "1️⃣: Sexual Threat\n" +
             "2️⃣: Offensive Content\n" +
             "3️⃣: Spam/Scam\n" +
@@ -161,9 +168,45 @@ class ManualReview:
         This function is called in state REVIEW_COMPLETE.
         It returns the right message for the end of the manual flow.
         '''
-        if self.review_data == {}: # Report is not real
+        if "severity" not in self.review_data or self.review_data["severity"] == 1: # Report is not real
             return "Manual review complete. No abuse found. No action taken."
+        elif self.review_data["severity"] == 2:
+            return f"Severity level 2 determined. User INSERT_USER_WHEN_USER_FLOW_DONE has been kicked."
+        elif self.review_data["severity"] == 3:
+            return f"Severity level 3 determined. Report has been rescalted to law enforcement. User INSERT_USER_WHEN_USER_FLOW_DONE has been kicked."
     
+    async def reply_severity(self):
+        '''
+        This function is called in the L1 state of most abuse types to ask for severity type.
+        It asks for the level of severity of the message.
+        '''
+        threat_message = await self.mod_channel.send(
+            "Question #3: What level of severity is the message? \n"
+            "1️⃣: Severity 1\n" +
+            "2️⃣: Severity 2\n" +
+            "3️⃣: Severity 3\n"
+        )
+
+        await threat_message.add_reaction("1️⃣")
+        await threat_message.add_reaction("2️⃣")
+        await threat_message.add_reaction("3️⃣")    
+
+    async def severity_l2(self, reaction):
+        '''
+        This function is called in the L2 state of most abuse types to ask for severity type.
+        It gets the response for the severity rating.
+        '''
+        if reaction.emoji.name == "1️⃣":
+            self.review_data["severity"] = 1
+        elif reaction.emoji.name == "2️⃣":
+            self.review_data["severity"] = 2
+        elif reaction.emoji.name == "3️⃣":
+            self.review_data["severity"] = 3
+        else:
+            return "Invalid reaction. Please try again."
+        
+        return f"Thank you. We've logged the severity as \"{self.review_data['severity']}\"."
+
     ### Helper Functions ###
 
     def category_to_string(self):
