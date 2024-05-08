@@ -30,6 +30,7 @@ class ModBot(discord.Client):
     def __init__(self): 
         intents = discord.Intents.default()
         intents.message_content = True
+        intents.reactions = True
         super().__init__(command_prefix='.', intents=intents)
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
@@ -109,6 +110,10 @@ class ModBot(discord.Client):
         scores = self.eval_text(message.content)
         await mod_channel.send(self.code_format(scores))
 
+    async def on_raw_reaction_add(self, reaction):
+        author_id = reaction.user_id
+        if author_id in self.reports:
+            await self.reports[author_id].handle_reaction(reaction)
     
     def eval_text(self, message):
         ''''
