@@ -7,6 +7,7 @@ import logging
 import re
 import requests
 from report import Report
+from manual import ManualReview
 import pdb
 
 # Set up logging to the console
@@ -30,12 +31,16 @@ class ModBot(discord.Client):
     def __init__(self): 
         intents = discord.Intents.default()
         intents.message_content = True
+        # Add reactions
         intents.reactions = True
+        self.group_32_guild_id = 1211760623969370122
         super().__init__(command_prefix='.', intents=intents)
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
-
+        self.reports_to_review = {} # Map from message_id in mod channel to respective report
+        self.mod_channel = None
+        self.manual_review = None # Current instance of ManualReview. It is None until report is complete
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
         for guild in self.guilds:
@@ -54,6 +59,8 @@ class ModBot(discord.Client):
             for channel in guild.text_channels:
                 if channel.name == f'group-{self.group_num}-mod':
                     self.mod_channels[guild.id] = channel
+        # ADDED: Populates mod_channel attribute
+        self.mod_channel = self.mod_channels[self.group_32_guild_id]
         
 
     async def on_message(self, message):
@@ -95,9 +102,19 @@ class ModBot(discord.Client):
         for r in responses:
             await message.channel.send(r)
 
-        # If the report is complete or cancelled, remove it from our map
+        # If the report is complete or cancelled, remove it from our map and add it to reports to review
+        # NOTE: Is not being used right now and should be checked that it works when user flow is done
         if self.reports[author_id].report_complete():
-            self.reports.pop(author_id)
+            report = self.reports.pop(author_id)
+            report_message = await self.mod_channel.send(
+                f"New Report: {report.report_data}\n" +
+                "1️⃣: Review Report\n"
+            )
+
+            # Add reactions
+            await report_message.add_reaction("1️⃣")
+
+            self.reports_to_review[report_message.id] = report.report_data
 
     async def handle_channel_message(self, message):
         # Only handle messages sent in the "group-#" channel
@@ -110,11 +127,25 @@ class ModBot(discord.Client):
         scores = self.eval_text(message.content)
         await mod_channel.send(self.code_format(scores))
 
+    # ADDED: This event handler detects when a reaction is made and if the author is reporting
+    # TODO: Add message checking on author_id to fix double message problem 
     async def on_raw_reaction_add(self, reaction):
         author_id = reaction.user_id
-        if author_id in self.reports:
+        message_id = reaction.message_id
+        # Intialization the manual review flow
+        if message_id in self.reports_to_review and reaction.emoji.name == "1️⃣" and self.manual_review == None:
+            report_data = self.reports_to_review[message_id]
+            self.manual_review = ManualReview(self, report_data, self.mod_channel)
+            await self.manual_review.perform_manual_review(reaction)
+        # Continuation of manual review flow
+        elif self.manual_review and self.group_32_guild_id == reaction.guild_id and author_id != self.user.id:
+            is_review_complete = await self.manual_review.perform_manual_review(reaction)
+            if is_review_complete: # reset self.manual_review
+                self.manual_review = None
+        # Otherwise report flow is handled
+        elif author_id in self.reports:
             await self.reports[author_id].handle_reaction(reaction)
-    
+
     def eval_text(self, message):
         ''''
         TODO: Once you know how you want to evaluate messages in your channel, 
