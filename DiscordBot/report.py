@@ -7,12 +7,16 @@ class State(Enum):
     AWAITING_MESSAGE = auto()
     MESSAGE_IDENTIFIED = auto()
     CATEGORY_IDENTIFIED = auto()
+    BLOCK_USER = auto()
     REPORT_COMPLETE = auto()
+    REPORT_CANCELLED = auto()
 
 class Level(Enum):
     L1 = auto()
     L2 = auto()
     L3 = auto()
+    L4 = auto()
+    L5 = auto()
 
 class Category(Enum):
     SEXUAL_THREAT = auto()
@@ -40,7 +44,7 @@ class Report:
         '''
 
         if message.content == self.CANCEL_KEYWORD:
-            self.state = State.REPORT_COMPLETE
+            self.state = State.REPORT_CANCELLED
             return ["Report cancelled."]
         
         if self.state == State.REPORT_START:
@@ -73,6 +77,10 @@ class Report:
             self.state = State.MESSAGE_IDENTIFIED
             await self.reply_message_id(message, fetched_message)
 
+        if self.state == State.CATEGORY_IDENTIFIED and self.report_data["category"] == Category.SEXUAL_THREAT and self.level == Level.L5:
+            self.report_data["context_content"] = message.content
+            await self.block_option(message.channel)
+
         return []
     
     async def reply_message_id(self, message, fetched_message):
@@ -101,25 +109,35 @@ class Report:
         It is first called in state MESSAGE_IDENTIFIED. 
         '''
         channel = await self.client.fetch_channel(reaction.channel_id)
-
+        if self.state == State.REPORT_COMPLETE:
+            return ["The report has already been completed."]
+        
         if self.state == State.MESSAGE_IDENTIFIED:
             await channel.send(await self.store_category(reaction))
             self.state = State.CATEGORY_IDENTIFIED
-        # Now, we ask follow-up questions based on the category.
-
+        
+        if self.state == State.BLOCK_USER:
+            await self.complete_report(reaction, channel)
+        
         ## Category: Sexual Threat ##
         if self.report_data["category"] == Category.SEXUAL_THREAT:
             if self.level == Level.L1:
-                await self.sexual_threat_l1(reaction, channel) 
                 self.level = Level.L2
+                await self.sexual_threat_l1(reaction, channel) 
             elif self.level == Level.L2:
+                self.level = Level.L3
                 await channel.send(await self.store_demand(reaction))
                 await self.sexual_threat_l2(reaction, channel)
-                self.level = Level.L3
             elif self.level == Level.L3:
+                self.level = Level.L4
                 await channel.send(await self.store_threat(reaction))
-                print("To do: ask to add further messages, etc.")
-                print("Report so far: ", self.report_data)
+                await self.sexual_threat_l3(reaction, channel)
+            elif self.level == Level.L4:
+                self.level = Level.L5
+                await self.collect_context_decision(reaction, channel)
+                
+            # Context (if any) collected as a message. 
+
 
         ## Category: Offensive Content ##
         elif self.report_data["category"] == Category.OFFENSIVE_CONTENT:
@@ -149,8 +167,6 @@ class Report:
             self.report_data["category"] = Category.SPAM_SCAM
         elif reaction.emoji.name == "4️⃣":
             self.report_data["category"] = Category.DANGER
-        else:
-            return "Invalid reaction. Please try again."
         
         return f"Thank you. We've logged the category as \"{self.category_to_string()}.\""
     
@@ -186,8 +202,6 @@ class Report:
             self.report_data["demand"] = "Sexual Service"
         elif reaction.emoji.name == "4️⃣":
             self.report_data["demand"] = "Other"
-        else:
-            return "Invalid reaction. Please try again."
         
         return f"Thank you. We've logged the demand as \"{self.report_data['demand']}\"."
     
@@ -218,14 +232,37 @@ class Report:
             self.report_data["threat"] = "Public Exposure"
         elif reaction.emoji.name == "3️⃣":
             self.report_data["threat"] = "Unclear"
-        else:
-            return "Invalid reaction. Please try again."
         
         return f"Thank you. We've logged the threat as \"{self.report_data['threat']}\"."
 
-    def report_complete(self):
-        return self.state == State.REPORT_COMPLETE
-    
+
+    async def sexual_threat_l3(self, reaction, channel):
+        '''
+        Called in category SEXUAL_THREAT and state L3.
+        Asks user if they want to give additional context. 
+        '''
+        context_message = await channel.send(
+            "Would you like to tell us anything else before submitting?\n"
+            "✅: Yes\n" + 
+            "❌: No\n"
+        )
+        await context_message.add_reaction("✅")
+        await context_message.add_reaction("❌")
+
+    async def collect_context_decision(self, reaction, channel):
+        '''
+        This function is called in category SEXUAL_THREAT and state L4.
+        It stores the user's response to the context question (L3).
+        The next user action if any is a message with additional context. 
+        '''
+        if reaction.emoji.name == "✅":
+            self.report_data["context"] = "Yes"
+            await channel.send("Please provide additional context in your next message. After you enter your message, we will submit the report.")
+            
+        elif reaction.emoji.name == "❌":
+            self.report_data["context"] = "No"
+            await self.block_option(channel)
+
 
     ### Helper Functions ###
 
@@ -241,7 +278,39 @@ class Report:
         else:
             return "Unknown"
     
+    def report_cancelled(self):
+        return self.state == State.REPORT_CANCELLED
 
-
+    def report_complete(self):
+        return self.state == State.REPORT_COMPLETE
     
+    async def block_option(self, channel):
+        '''
+        This is the last step; ask user if they want to block the author of the message.
+        '''
+        await channel.send("If you are not ready to submit at this point, please type 'cancel' to cancel the report now. \n")
 
+        block_message = await channel.send(
+            "One final question before we submit: would you like to block the author of the message?\n"
+            "✅: Yes\n" + 
+            "❌: No\n"
+        )
+        await block_message.add_reaction("✅")
+        await block_message.add_reaction("❌")
+        self.state = State.BLOCK_USER
+
+    async def complete_report(self, reaction, channel):
+        '''
+        This function is called in state BLOCK_USER.
+        It completes the report and sends the final message. 
+        '''
+        if reaction.emoji.name == "✅":
+            self.report_data["block"] = "Yes"
+            await channel.send("The author will be blocked.")
+        elif reaction.emoji.name == "❌":
+            self.report_data["block"] = "No"
+            await channel.send("The author will not be blocked.")
+
+        await channel.send("Thank you for your report. The content moderation team will decide the appropriate next steps given the severity of the content nature, including contacting crisis hotline, escalating to law enforcement, and/or removal of the post and/or account.")
+        await channel.send("Here is a summary of the report: " + str(self.report_data))
+        self.state = State.REPORT_COMPLETE
