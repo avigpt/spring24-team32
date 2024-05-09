@@ -5,6 +5,7 @@ import re
 '''
 Known issues that need to be addressed but should be ignored until flow is done:
 
+0. When accepting a report it should repeat what report is being done.
 1. Report reviews can only happen one at a time. If a second report is attempted to be reviewed it should not happen.
 There is some logic on destroying ManualReview instances but it is not complete.
 2. Reactions should only be valid if they were on the right message. This is currently a problem in both flows. 

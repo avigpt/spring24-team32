@@ -31,6 +31,7 @@ class Report:
         self.client = client
         self.message = None
         self.report_data = {}
+        self.canceled = False # A flag for if the report was canceled. Used to prevent canceled reports from going to review.
 
     async def handle_message(self, message):
         '''
@@ -41,6 +42,7 @@ class Report:
 
         if message.content == self.CANCEL_KEYWORD:
             self.state = State.REPORT_COMPLETE
+            self.canceled = True
             return ["Report cancelled."]
         
         if self.state == State.REPORT_START:

@@ -8,6 +8,7 @@ import re
 import requests
 from report import Report
 from manual import ManualReview
+from manual import Category
 import pdb
 
 # Set up logging to the console
@@ -41,6 +42,7 @@ class ModBot(discord.Client):
         self.reports_to_review = {} # Map from message_id in mod channel to respective report
         self.mod_channel = None
         self.manual_review = None # Current instance of ManualReview. It is None until report is complete
+
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
         for guild in self.guilds:
@@ -104,17 +106,21 @@ class ModBot(discord.Client):
 
         # If the report is complete or cancelled, remove it from our map and add it to reports to review
         # NOTE: Is not being used right now and should be checked that it works when user flow is done
-        if self.reports[author_id].report_complete():
+        if False:#self.reports[author_id].canceled: put this back in when user flow is finished
+            self.reports.pop(author_id)
+        elif self.reports[author_id].report_complete():
+            # REMOVE THIS LINE WHEN USER FLOW IS FINISHED
+            report.report_data = {'name': 'cgarcia00', 'content': 'test', 'category': Category.SEXUAL_THREAT, 'demand': 'Nude Content', 'threat': 'Physical Harm'}
             report = self.reports.pop(author_id)
             report_message = await self.mod_channel.send(
-                f"New Report: {report.report_data}\n" +
+                f"New Report: {report.report_data}\n"
                 "1️⃣: Review Report\n"
             )
 
             # Add reactions
             await report_message.add_reaction("1️⃣")
-
             self.reports_to_review[report_message.id] = report.report_data
+
 
     async def handle_channel_message(self, message):
         # Only handle messages sent in the "group-#" channel
