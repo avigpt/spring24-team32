@@ -49,6 +49,8 @@ class ManualReview:
         Core logic of the manual review. First the report is determined to be abuse or not. Then it is classified.
         TODO: Once classification is complete, self.level is used to fine-grain states.
         '''
+        #channel = await self.client.fetch_channel(reaction.channel_id)
+
         if self.state == State.REVIEW_START:
             await self.reply_legitimate_abuse()
             self.state = State.AWAITING_ABUSE_IDENTIFICATION
@@ -71,23 +73,39 @@ class ManualReview:
         
         # Runs once self.state is State.CATEGORY_INDENFIFIED
         if self.review_data["category"] == Category.SEXUAL_THREAT:
-            # TODO: Follow flow
-            # DELETE WHEN ABOVE IS IMPLEMENTED
-            await self.mod_channel.send(f"To implement: Sexual Threat")
+            if self.level == Level.L1: # asks specific sexual threat type
+                await self.reply_sexual_threat_type()
+                self.level = Level.L2
+            elif self.level == Level.L2: # records response for specific sexual threat type + rate severity
+                await self.mod_channel.send(await self.store_sexual_threat_type(reaction))
+                await self.reply_severity()
+                self.level = Level.L3
+            elif self.level == Level.L3: # record severity 
+                await self.mod_channel.send(await self.store_severity(reaction))
+                self.state = State.REVIEW_COMPLETE
+
         elif self.review_data["category"] == Category.OFFENSIVE_CONTENT:
-            # TODO: Follow flow
-            # DELETE WHEN ABOVE IS IMPLEMENTED
-            await self.mod_channel.send(f"To implement: Offensive Content")
+            if self.level == Level.L1:
+                await self.reply_severity()
+                self.level = Level.L2
+            elif self.level == Level.L2:
+                await self.mod_channel.send(await self.store_severity(reaction))
+                self.state = State.REVIEW_COMPLETE
+
         elif self.review_data["category"] == Category.SPAM_SCAM:
-            # TODO: Follow flow
-            # DELETE WHEN ABOVE IS IMPLEMENTED
-            await self.mod_channel.send(f"To implement: Spam/Scam")
+            if self.level == Level.L1:
+                await self.reply_severity()
+                self.level = Level.L2
+            elif self.level == Level.L2:
+                await self.mod_channel.send(await self.store_severity(reaction))
+                self.state = State.REVIEW_COMPLETE
+
         elif self.review_data["category"] == Category.DANGER:
             if self.level == Level.L1:
                 await self.reply_severity()
                 self.level = Level.L2
             elif self.level == Level.L2:
-                await self.mod_channel.send(await self.severity_l2(reaction))
+                await self.mod_channel.send(await self.store_severity(reaction))
                 self.state = State.REVIEW_COMPLETE
         
         # Runs when Review is complete and it outputs the determined actions
@@ -163,6 +181,52 @@ class ManualReview:
         
         return f"Thank you. We've logged the category as \"{self.category_to_string()}.\""
     
+    async def reply_sexual_threat_type(self):
+        '''
+        Called in category SEXUAL_THREAT and state L1.
+        This function asks the moderator to identify the specific type of sexual threat (1 of 6). 
+        '''
+        sexual_threat_type = await self.mod_channel.send(
+            "What is the specific type of sexual threat involved?\n"
+            "1️⃣: Fake Explicit Image\n" +
+            "2️⃣: Financial Extortion\n" +
+            "3️⃣: Reputation Damage\n" + 
+            "4️⃣: Physical Threats\n" + 
+            "5️⃣: Compromising Material\n" + 
+            "6️⃣: Other\n" 
+        )
+
+        # Add reactions 
+        await sexual_threat_type.add_reaction("1️⃣")
+        await sexual_threat_type.add_reaction("2️⃣")
+        await sexual_threat_type.add_reaction("3️⃣")
+        await sexual_threat_type.add_reaction("4️⃣")
+        await sexual_threat_type.add_reaction("5️⃣")
+        await sexual_threat_type.add_reaction("6️⃣")
+
+    async def store_sexual_threat_type(self, reaction):
+        '''
+        This function is called in category SEXUAL_THREAT and state L2. 
+        It stores the moderator's response to what kind of sexual threat the abuse is.
+        '''
+        if reaction.emoji.name == "1️⃣":
+            self.review_data["sexual_threat_type"] = "Fake Explicit Image"
+        elif reaction.emoji.name == "2️⃣":
+            self.review_data["sexual_threat_type"] = "Financial Extortiont"
+        elif reaction.emoji.name == "3️⃣":
+            self.review_data["sexual_threat_type"] = "Reputational Damage"
+        elif reaction.emoji.name == "4️⃣":
+            self.review_data["sexual_threat_type"] = "Physical Threats"
+        elif reaction.emoji.name == "5️⃣":
+            self.review_data["sexual_threat_type"] = "Compromising Material"
+        elif reaction.emoji.name == "6️⃣":
+            self.review_data["sexual_threat_type"] = "Other"
+        else:
+            return "Invalid reaction. Please try again."
+        
+        return f"Thank you. We've logged the specific sexual threat type as \"{self.review_data['sexual_threat_type']}\"."
+
+
     async def determine_action(self):
         '''
         This function is called in state REVIEW_COMPLETE.
@@ -191,10 +255,12 @@ class ManualReview:
         await threat_message.add_reaction("2️⃣")
         await threat_message.add_reaction("3️⃣")    
 
-    async def severity_l2(self, reaction):
+    # changed function name from severity_l2 to be more general 
+    async def store_severity(self, reaction):
         '''
-        This function is called in the L2 state of most abuse types to ask for severity type.
-        It gets the response for the severity rating.
+        This function is called in the L2 state of most abuse types to ask for severity type
+        Exception: for sexual abuse, it is called during L3. 
+        It records the response for the severity rating.
         '''
         if reaction.emoji.name == "1️⃣":
             self.review_data["severity"] = 1
