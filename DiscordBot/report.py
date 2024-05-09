@@ -140,26 +140,45 @@ class Report:
 
         ## Category: Offensive Content ##
         elif self.report_data["category"] == Category.OFFENSIVE_CONTENT:
-            print("To implement: Offensive Content flow.")
+            if self.level == Level.L1:
+                self.level = Level.L2
+                await self.offensive_content_l1(channel) 
+            elif self.level == Level.L2:
+                self.level = Level.L3
+                await channel.send(await self.store_offensive_content_type(reaction))
+                await self.block_option(channel)
+                
 
         ## Category: Spam/Scam ##
         elif self.report_data["category"] == Category.SPAM_SCAM:
-            print("To implement: Spam/Scam flow.")
+            if self.level == Level.L1:
+                self.level = Level.L2
+                await self.spam_scam_content_l1(channel) 
+            elif self.level == Level.L2:
+                self.level = Level.L3
+                await channel.send(await self.store_spam_scam_content_type(reaction))
+                await self.block_option(channel)
 
         ## Category: Danger ##
         elif self.report_data["category"] == Category.DANGER:
-            await channel.send("If someone is in immediate danger, please get help before reporting. Don't wait.")
             if self.level == Level.L1:
                 self.level = Level.L2
                 await self.danger_l1(channel)
             elif self.level == Level.L2:
                 self.level = Level.L3
-                await self.collect_danger_type(reaction)
-                await self.danger_l2(channel)
-            elif self.level == Level.L3:
+                await channel.send(await self.collect_danger_type(reaction))
+                if self.report_data["danger_type"] == "Safety Threat":
+                    await self.danger_l2_threat(channel)        
+                else: 
+                    await self.danger_l2_criminal(channel)
+            elif self.level == Level.L3: 
                 self.level = Level.L4
-                await self.danger_l3()
-
+                if self.report_data["danger_type"] == "Safety Threat":
+                    await channel.send(await self.store_safety_threat_type(reaction))
+                else: 
+                    await channel.send(await self.store_criminal_behavior_type(reaction))
+                await self.block_option(channel)
+                
         else:
             channel.send("Invalid reaction. Please answer the most recent question. Type 'cancel' to start over.")
 
@@ -274,13 +293,13 @@ class Report:
             await self.block_option(channel)
 
     ## Danger Flow ##
-
     async def danger_l1(self, channel):
         '''
         Called in category DANGER and state L1.
         This function asks the user to provide more detail; specifically, for the nature of the danger. 
         '''
         danger_message = await channel.send(
+            "If someone is in immediate danger, please get help before reporting. Don't wait.\n" +
             "When you are ready to continue, please select the nature of the danger?\n" +
             "1️⃣: Safety Threat\n" +
             "2️⃣: Criminal Behavior\n"
@@ -300,27 +319,113 @@ class Report:
         
         return f"Thank you. We've logged the danger type as \"{self.report_data['danger_type']}\"."
 
-    async def danger_l2(self, channel):
+    async def danger_l2_threat(self, channel):
         '''
-        Called in category DANGER and state L2.
-        This function asks the user to provide more detail based on the danger type.
+        This function is called in category DANGER and state L2 if the user clicked Safety Threat.
         '''
-        if self.report_data["danger_type"] == "Safety Threat":
-            safety_message = await channel.send(
-                "Please select the type of safety threat.\n" +
-                "1️⃣: Suicide/Self-Harm\n" +
-                "2️⃣: Violence\n"
-            )
-            await safety_message.add_reaction("1️⃣")
-            await safety_message.add_reaction("2️⃣")
-
-        elif self.report_data["danger_type"] == "Criminal Behavior":
-            criminal_message = await channel.send(
-                "Please select the type of criminal behavior.\n" +
-                "1️⃣: Theft/Robbery\n" +
-                "2️⃣: Child Abuse\n" +
-                "3️⃣: Human Exploitation"
-            )
+        safety_message = await channel.send(
+            "Please select the type of safety threat.\n" +
+            "1️⃣: Suicide/Self-Harm\n" +
+            "2️⃣: Violence\n"
+        )
+        await safety_message.add_reaction("1️⃣")
+        await safety_message.add_reaction("2️⃣")
+            
+    async def danger_l2_criminal(self, channel):
+        '''
+        This function is called in category DANGER and state L2 if the user clicked Criminal Behavior.
+        '''
+        criminal_message = await channel.send(
+            "Please select the type of criminal behavior.\n" +
+            "1️⃣: Theft/Robbery\n" +
+            "2️⃣: Child Abuse\n" +
+            "3️⃣: Human Exploitation"
+        )
+        await criminal_message.add_reaction("1️⃣")
+        await criminal_message.add_reaction("2️⃣")
+        await criminal_message.add_reaction("3️⃣")
+        
+    async def store_safety_threat_type(self, reaction): 
+        '''
+        This function is called in category DANGER and state L3.
+        It stores the user's response to the type of safety threat question (L2). 
+        '''
+        if reaction.emoji.name == "1️⃣":
+            self.report_data["safety_threat_type"] = "Suicide/Self-Harm"
+        elif reaction.emoji.name == "2️⃣":
+            self.report_data["safety_threat_type"] = "Violence"
+            
+        return f"Thank you. We've logged the threat as \"{self.report_data['safety_threat_type']}\"."
+    
+    async def store_criminal_behavior_type(self, reaction): 
+        '''
+        This function is called in category DANGER and state L3.
+        It stores the user's response to the type of criminal behavior question (L2). 
+        '''
+        if reaction.emoji.name == "1️⃣":
+            self.report_data["criminal_behavior_type"] = "Theft/Robbery"
+        elif reaction.emoji.name == "2️⃣":
+            self.report_data["criminal_behavior_type"] = "Child Abuse"
+        elif reaction.emoji.name == "3️⃣":
+            self.report_data["criminal_behavior_type"] = "Human Exploitation"
+            
+        return f"Thank you. We've logged the threat as \"{self.report_data['criminal_behavior_type']}\"."
+            
+           
+    async def offensive_content_l1(self, channel): 
+        content_message = await channel.send(
+            "Please select the type of offensive content.\n"
+            "1️⃣: Violent Content\n" +
+            "2️⃣: Hateful Content\n" +
+            "3️⃣: Pornography\n"
+        )
+        
+        await content_message.add_reaction("1️⃣")
+        await content_message.add_reaction("2️⃣")
+        await content_message.add_reaction("3️⃣")
+        
+        
+    async def store_offensive_content_type(self, reaction):
+        '''
+        This function is called in category OFFENSIVE_CONTENT and state L2.
+        It stores the user's response to the type of offensive content question (L1). 
+        '''
+        if reaction.emoji.name == "1️⃣":
+            self.report_data["offensive_content_type"] = "Violent Content"
+        elif reaction.emoji.name == "2️⃣":
+            self.report_data["offensive_content_type"] = "Hateful Content"
+        elif reaction.emoji.name == "3️⃣":
+            self.report_data["offensive_content_type"] = "Pornography"
+        
+        return f"Thank you. We've logged the threat as \"{self.report_data['offensive_content_type']}\"."
+        
+        
+    async def spam_scam_content_l1(self, channel): 
+        content_message = await channel.send(
+            "Please select the type of spam/scam.\n"
+            "1️⃣: Spam\n" +
+            "2️⃣: Fraud\n" +
+            "3️⃣: Impersonation or Fake Account\n"
+        )
+        
+        await content_message.add_reaction("1️⃣")
+        await content_message.add_reaction("2️⃣")
+        await content_message.add_reaction("3️⃣")
+        
+    async def store_spam_scam_content_type(self, reaction):
+        '''
+        This function is called in category SPAM_SCAM and state L2.
+        It stores the user's response to the type of spam/scam content question (L1). 
+        '''
+        if reaction.emoji.name == "1️⃣":
+            self.report_data["spam_scam_content_type"] = "Spam"
+        elif reaction.emoji.name == "2️⃣":
+            self.report_data["spam_scam_content_type"] = "Fraud"
+        elif reaction.emoji.name == "3️⃣":
+            self.report_data["spam_scam_content_type"] = "Impersonation or Fake Account"
+        
+        return f"Thank you. We've logged the threat as \"{self.report_data['spam_scam_content_type']}\"."
+            
         
     ### Helper Functions ###
 
