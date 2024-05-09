@@ -44,6 +44,8 @@ class Report:
         '''
 
         if message.content == self.CANCEL_KEYWORD:
+            if self.state == State.REPORT_COMPLETE:
+                return ["The report has already been completed."]
             self.state = State.REPORT_CANCELLED
             return ["Report cancelled."]
         
@@ -300,7 +302,7 @@ class Report:
         '''
         danger_message = await channel.send(
             "If someone is in immediate danger, please get help before reporting. Don't wait.\n" +
-            "When you are ready to continue, please select the nature of the danger?\n" +
+            "When you are ready to continue, please select the nature of the danger.\n" +
             "1️⃣: Safety Threat\n" +
             "2️⃣: Criminal Behavior\n"
         )
@@ -371,7 +373,8 @@ class Report:
             
         return f"Thank you. We've logged the threat as \"{self.report_data['criminal_behavior_type']}\"."
             
-           
+    
+    ## Offensive Content ## 
     async def offensive_content_l1(self, channel): 
         content_message = await channel.send(
             "Please select the type of offensive content.\n"
@@ -400,6 +403,7 @@ class Report:
         return f"Thank you. We've logged the threat as \"{self.report_data['offensive_content_type']}\"."
         
         
+    ## Spam/Scam ##
     async def spam_scam_content_l1(self, channel): 
         content_message = await channel.send(
             "Please select the type of spam/scam.\n"
@@ -428,7 +432,6 @@ class Report:
             
         
     ### Helper Functions ###
-
     def category_to_string(self):
         if self.report_data["category"] == Category.SEXUAL_THREAT:
             return "Sexual Threat"
@@ -475,5 +478,5 @@ class Report:
             await channel.send("The author will not be blocked.")
 
         await channel.send("Thank you for your report. The content moderation team will decide the appropriate next steps given the severity of the content nature, including contacting crisis hotline, escalating to law enforcement, and/or removal of the post and/or account.")
-        await channel.send("Here is a summary of the report: " + str(self.report_data))
+        # await channel.send("Here is a summary of the report: " + str(self.report_data))
         self.state = State.REPORT_COMPLETE
