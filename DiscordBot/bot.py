@@ -104,22 +104,10 @@ class ModBot(discord.Client):
         for r in responses:
             await message.channel.send(r)
 
-        # If the report is complete or cancelled, remove it from our map and add it to reports to review
-        # NOTE: Is not being used right now and should be checked that it works when user flow is done
-        if False:#self.reports[author_id].canceled: put this back in when user flow is finished
-            self.reports.pop(author_id)
-        elif self.reports[author_id].report_complete():
-            # REMOVE THIS LINE WHEN USER FLOW IS FINISHED
-            report.report_data = {'name': 'cgarcia00', 'content': 'test', 'category': Category.SEXUAL_THREAT, 'demand': 'Nude Content', 'threat': 'Physical Harm'}
-            report = self.reports.pop(author_id)
-            report_message = await self.mod_channel.send(
-                f"New Report: {report.report_data}\n"
-                "1️⃣: Review Report\n"
-            )
 
-            # Add reactions
-            await report_message.add_reaction("1️⃣")
-            self.reports_to_review[report_message.id] = report.report_data
+        # If the report is complete or cancelled, remove it from our map and add it to reports to review
+        if self.reports[author_id].report_cancelled():
+            self.reports.pop(author_id)
 
 
     async def handle_channel_message(self, message):
@@ -138,6 +126,7 @@ class ModBot(discord.Client):
     async def on_raw_reaction_add(self, reaction):
         author_id = reaction.user_id
         message_id = reaction.message_id
+
         # Intialization the manual review flow
         if message_id in self.reports_to_review and reaction.emoji.name == "1️⃣" and self.manual_review == None:
             report_data = self.reports_to_review[message_id]
@@ -151,6 +140,16 @@ class ModBot(discord.Client):
         # Otherwise report flow is handled
         elif author_id in self.reports:
             await self.reports[author_id].handle_reaction(reaction)
+
+        if author_id in self.reports and self.reports[author_id].report_complete() and not self.reports[author_id].report_cancelled():
+            report = self.reports.pop(author_id)
+            report_message = await self.mod_channel.send(
+                f"New Report: {report.report_data}\n"
+                "1️⃣: Review Report\n"
+            )
+            # Add reactions
+            await report_message.add_reaction("1️⃣")
+            self.reports_to_review[report_message.id] = report.report_data
 
     def eval_text(self, message):
         ''''
