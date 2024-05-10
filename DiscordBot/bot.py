@@ -149,10 +149,11 @@ class ModBot(discord.Client):
         if author_id in self.reports and self.reports[author_id].report_complete() and not self.reports[author_id].report_cancelled():
             report = self.reports.pop(author_id)
             # Adds urgent report to sexual threat or danger reports
+            accept_message = "===========================\nPress 1️⃣ to accept and review this report."
             if report.report_data["category"] != Category.DANGER and report.report_data["category"] != Category.SEXUAL_THREAT:
-                report_message = await self.mod_channel.send(self.format_report(report.report_data))
+                report_message = await self.mod_channel.send(self.format_report(report.report_data) + "\n" + accept_message)
             else:
-                report_message = await self.mod_channel.send("‼️Urgent Report‼️\n" + self.format_report(report.report_data))
+                report_message = await self.mod_channel.send("‼️Urgent Report‼️\n" + self.format_report(report.report_data) + "\n" + accept_message)
             # Add reactions
             await report_message.add_reaction("1️⃣")
             self.reports_to_review[report_message.id] = report.report_data
