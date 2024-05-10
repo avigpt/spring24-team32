@@ -129,7 +129,7 @@ class ModBot(discord.Client):
 
         # Intialization the manual review flow
         if message_id in self.reports_to_review and reaction.emoji.name == "1️⃣" and self.manual_review == None:
-            report_data = self.reports_to_review[message_id]
+            report_data = self.reports_to_review.pop(message_id)
             self.manual_review = ManualReview(self, report_data, self.mod_channel)
             await self.manual_review.perform_manual_review(reaction)
         # Continuation of manual review flow
@@ -141,6 +141,8 @@ class ModBot(discord.Client):
         elif author_id in self.reports:
             await self.reports[author_id].handle_reaction(reaction)
 
+        # When the report is complete it is removed from self.reports and the data is sent to self.reports_to_review
+        # The mod channel then gets forwarded the data and is given the option to review it.
         if author_id in self.reports and self.reports[author_id].report_complete() and not self.reports[author_id].report_cancelled():
             report = self.reports.pop(author_id)
             report_message = await self.mod_channel.send(

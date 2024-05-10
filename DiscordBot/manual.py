@@ -8,10 +8,9 @@ Known issues that need to be addressed but should be ignored until flow is done:
 0. When accepting a report it should repeat what report is being done.
 1. Report reviews can only happen one at a time. If a second report is attempted to be reviewed it should not happen.
 There is some logic on destroying ManualReview instances but it is not complete.
-2. Reactions should only be valid if they were on the right message. This is currently a problem in both flows. 
-One idea could be to keep track of a pointer to the message_id of the next message sent out and then return it to the client in
+2. Reactions should only be valid if they were on the right message. This is currently only a problem in USER FLOW. 
+The idea used was to keep track of a pointer to the message_id of the next message sent out and then return it to the client in
 bot.py to use in on_raw_reaction_add().
-3. Reports that are canceled should be ignored. Cannot be done until user flow is finished.
 4. Format incoming reports in group-32-mod channel. Show priority.
 5. The severity 1 flow is simplifed to just return no abuse instead of checking for fake report and looping. Should revisit.
 '''
@@ -42,7 +41,7 @@ class ManualReview:
         self.report_data = report_data
         self.mod_channel = mod_channel
         self.review_data = {}
-        self.next_message_id = None # TODO: For ensuring only the reactions on the next message work
+        self.next_message_id = None
 
 
     async def perform_manual_review(self, reaction):
@@ -50,7 +49,9 @@ class ManualReview:
         Core logic of the manual review. First the report is determined to be abuse or not. Then it is classified.
         TODO: Once classification is complete, self.level is used to fine-grain states.
         '''
-        #channel = await self.client.fetch_channel(reaction.channel_id)
+        # Returns early if the reaction is not for the right message.
+        if self.next_message_id != None and reaction.message_id != self.next_message_id:
+            return False
 
         if self.state == State.REVIEW_START:
             await self.reply_legitimate_abuse()
@@ -126,6 +127,7 @@ class ManualReview:
             "👍: Yes\n\n" +
             "👎: No\n"
         )
+        self.next_message_id = legitimate_abuse_message.id
 
         # Add reactions
         await legitimate_abuse_message.add_reaction("👍")
@@ -157,6 +159,8 @@ class ManualReview:
             "3️⃣: Spam/Scam\n" +
             "4️⃣: Imminent Danger\n"
             )
+        
+        self.next_message_id = reaction_message.id
 
         # Add reactions
         await reaction_message.add_reaction("1️⃣")
@@ -196,6 +200,8 @@ class ManualReview:
             "5️⃣: Compromising Material\n" + 
             "6️⃣: Other\n" 
         )
+
+        self.next_message_id = sexual_threat_type.id
 
         # Add reactions 
         await sexual_threat_type.add_reaction("1️⃣")
@@ -255,6 +261,8 @@ class ManualReview:
         await threat_message.add_reaction("1️⃣")
         await threat_message.add_reaction("2️⃣")
         await threat_message.add_reaction("3️⃣")    
+
+        self.next_message_id = threat_message.id
 
     # changed function name from severity_l2 to be more general 
     async def store_severity(self, reaction):
