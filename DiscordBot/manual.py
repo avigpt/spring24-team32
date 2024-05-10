@@ -72,6 +72,9 @@ class ManualReview:
 
         # Returns early if State.CATEGORY_IDENTIFIED is not the current state
         if self.state != State.CATEGORY_IDENTIFIED:
+            if self.state == State.REVIEW_COMPLETE: # Edge case for when abuse is not found
+                await self.mod_channel.send(await self.determine_action())
+                return True
             return False
         
         # Runs once self.state is State.CATEGORY_INDENFIFIED
