@@ -1,6 +1,7 @@
 from enum import Enum, auto
 import discord
 import re
+from report import Category as ReportCategory
 
 '''
 Known issues that need to be addressed but should be ignored until flow is done:
@@ -41,7 +42,7 @@ class ManualReview:
         self.report_data = report_data
         self.mod_channel = mod_channel
         self.review_data = {}
-        self.next_message_id = None
+        self.next_message_id = None # Used to keep track of the next message that needs reactions
 
 
     async def perform_manual_review(self, reaction):
@@ -123,7 +124,7 @@ class ManualReview:
         It asks the question of whether the message is legitimate abuse AKA is the report real.
         '''
         legitimate_abuse_message = await self.mod_channel.send(
-            "Question #1: Is this legitimate abuse? \n"
+            "Is this legitimate abuse? \n"
             "👍: Yes\n\n" +
             "👎: No\n"
         )
@@ -152,8 +153,9 @@ class ManualReview:
         Called in State: ABUSE_IDENTIFIED.
         This function asks the user to categorize the message. 
         '''
-        reaction_message = await self.mod_channel.send(
-            "Question #2: What type of abuse is this message?\n" +
+        reaction_message = await self.mod_channel.send(    
+            f'The reporter categorized this as \"{self.category_to_string_manual(self.report_data["category"])}\"\n'
+            "What type of abuse is this message?\n" +
             "1️⃣: Sexual Threat\n" +
             "2️⃣: Offensive Content\n" +
             "3️⃣: Spam/Scam\n" +
@@ -242,9 +244,9 @@ class ManualReview:
         if "severity" not in self.review_data or self.review_data["severity"] == 1: # Report is not real
             return "Manual review complete. No abuse found. No action taken."
         elif self.review_data["severity"] == 2:
-            return f"Severity level 2 determined. User INSERT_USER_WHEN_USER_FLOW_DONE has been kicked."
+            return f'Severity level 2 determined. User {self.report_data["name"]} has been kicked.'
         elif self.review_data["severity"] == 3:
-            return f"Severity level 3 determined. Report has been rescalted to law enforcement. User INSERT_USER_WHEN_USER_FLOW_DONE has been kicked."
+            return f'Severity level 3 determined. Report has been rescalted to law enforcement. User {self.report_data["name"]} has been kicked.'
     
     async def reply_severity(self):
         '''
@@ -252,10 +254,10 @@ class ManualReview:
         It asks for the level of severity of the message.
         '''
         threat_message = await self.mod_channel.send(
-            "Question #3: What level of severity is the message? \n"
-            "1️⃣: Severity 1\n" +
-            "2️⃣: Severity 2\n" +
-            "3️⃣: Severity 3\n"
+            "What level of severity is the message?\n"
+            "1️⃣: Severity 1 - Not abuse\n" +
+            "2️⃣: Severity 2 - Bannable Offense\n" +
+            "3️⃣: Severity 3 - Egregious Offense\n"
         )
 
         await threat_message.add_reaction("1️⃣")
@@ -280,7 +282,7 @@ class ManualReview:
         else:
             return "Invalid reaction. Please try again."
         
-        return f"Thank you. We've logged the severity as \"{self.review_data['severity']}\"."
+        return f"Thank you. We've logged the severity as \"Severity {self.review_data['severity']}\"."
 
     ### Helper Functions ###
 
@@ -292,6 +294,21 @@ class ManualReview:
         elif self.review_data["category"] == Category.SPAM_SCAM:
             return "Spam/Scam"
         elif self.review_data["category"] == Category.DANGER:
+            return "Danger"
+        else:
+            return "Unknown"
+        
+    def category_to_string_manual(self, category):
+        '''
+        A manual version of category_to_string that takes the category as input.
+        '''
+        if category == ReportCategory.SEXUAL_THREAT:
+            return "Sexual Threat"
+        elif category == ReportCategory.OFFENSIVE_CONTENT:
+            return "Offensive Content"
+        elif category == ReportCategory.SPAM_SCAM:
+            return "Spam/Scam"
+        elif category == ReportCategory.DANGER:
             return "Danger"
         else:
             return "Unknown"

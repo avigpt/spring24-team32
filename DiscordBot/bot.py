@@ -8,7 +8,7 @@ import re
 import requests
 from report import Report
 from manual import ManualReview
-from manual import Category
+from report import Category
 import pdb
 
 # Set up logging to the console
@@ -130,6 +130,9 @@ class ModBot(discord.Client):
         # Intialization the manual review flow
         if message_id in self.reports_to_review and reaction.emoji.name == "1️⃣" and self.manual_review == None:
             report_data = self.reports_to_review.pop(message_id)
+            await self.mod_channel.send(
+                "Current " + self.format_report(report_data)
+            )
             self.manual_review = ManualReview(self, report_data, self.mod_channel)
             await self.manual_review.perform_manual_review(reaction)
         # Continuation of manual review flow
@@ -145,13 +148,105 @@ class ModBot(discord.Client):
         # The mod channel then gets forwarded the data and is given the option to review it.
         if author_id in self.reports and self.reports[author_id].report_complete() and not self.reports[author_id].report_cancelled():
             report = self.reports.pop(author_id)
-            report_message = await self.mod_channel.send(
-                f"New Report: {report.report_data}\n"
-                "1️⃣: Review Report\n"
-            )
+            # Adds urgent report to sexual threat or danger reports
+            if report.report_data["category"] != Category.DANGER and report.report_data["category"] != Category.SEXUAL_THREAT:
+                report_message = await self.mod_channel.send(self.format_report(report.report_data))
+            else:
+                report_message = await self.mod_channel.send("‼️Urgent Report‼️\n" + self.format_report(report.report_data))
             # Add reactions
             await report_message.add_reaction("1️⃣")
             self.reports_to_review[report_message.id] = report.report_data
+
+
+# Helper functions
+
+    def format_report(self, report_data):
+        '''
+        This function takes in report_data and formats it so that it can be displayed
+        for moderators before the select to review it.
+        '''
+        if report_data["category"] == Category.SEXUAL_THREAT:
+            return self.format_sexual_threat(report_data)
+        elif report_data["category"] == Category.OFFENSIVE_CONTENT:
+            return self.format_offesive_content(report_data)
+        elif report_data["category"] == Category.SPAM_SCAM:
+            return self.format_spam_scam(report_data)    
+        elif report_data["category"] == Category.DANGER:
+            return self.format_danger(report_data)
+
+    def format_sexual_threat(self, report_data):
+        '''
+        Format function for sexual threat reports
+        '''
+        reply = "Report Summary\n" + \
+                "===========================\n"
+        
+        reply += "Abuse Type: Sexual Threat Content\n"
+        reply += f'Reported User: {report_data["name"]}\n'
+        reply += f'Message: {report_data["content"]}\n'
+        reply += f'Demand Made: {report_data["demand"]}\n'
+        reply += f'Threat Made: {report_data["threat"]}\n'
+        reply += "Addtional Content: NONE" if report_data["context"] == "No" else f'Addtional Content: {report_data["context_content"]}'
+        return reply
+    
+    def format_offesive_content(self, report_data):
+        '''
+        Format function for offensive content reports
+        '''
+        reply = "Report Summary\n" + \
+                "===========================\n"
+        
+        reply += "Abuse Type: Offensive Content\n"
+        reply += f'Reported User: {report_data["name"]}\n'
+        reply += f'Message: {report_data["content"]}\n'
+        reply += f'Offensive Content Type: {report_data["offensive_content_type"]}'
+
+        return reply
+    def format_spam_scam(self, report_data):
+        '''
+        Format function for spam/scam reports
+        '''
+        reply = "Report Summary\n" + \
+                "===========================\n"
+        
+        reply += "Abuse Type: Spam/Scam Content\n"
+        reply += f'Reported User: {report_data["name"]}\n'
+        reply += f'Message: {report_data["content"]}\n'
+        reply += f'Spam/Scam Content Type: {report_data["spam_scam_content_type"]}'
+
+        return reply
+    def format_danger(self, report_data):
+        '''
+        Format function for danger reports
+        '''
+        reply = "Report Summary\n" + \
+                "===========================\n"
+        
+        reply += "Abuse Type: Imminent Danger Content\n"
+        reply += f'Reported User: {report_data["name"]}\n'
+        reply += f'Message: {report_data["content"]}\n'
+        reply += f'Imminent Danger Type: {report_data["danger_type"]}\n'
+        if "safety_threat_type" in report_data:
+            reply += f'Safety Threat Type: {report_data["safety_threat_type"]}'
+        elif "criminal_behavior_type" in report_data:
+            reply += f'Criminal Behavior Type: {report_data["criminal_behavior_type"]}'
+
+        return reply
+
+    def category_to_string(self):
+        '''
+        Convert states in Category to strings
+        '''
+        if self.review_data["category"] == Category.SEXUAL_THREAT:
+            return "Sexual Threat"
+        elif self.review_data["category"] == Category.OFFENSIVE_CONTENT:
+            return "Offensive Content"
+        elif self.review_data["category"] == Category.SPAM_SCAM:
+            return "Spam/Scam"
+        elif self.review_data["category"] == Category.DANGER:
+            return "Danger"
+        else:
+            return "Unknown"
 
     def eval_text(self, message):
         ''''
