@@ -35,6 +35,7 @@ class Report:
         self.client = client
         self.message = None
         self.report_data = {}
+        self.next_message_id = None # Used to keep track of the next message that needs reactions
 
     async def handle_message(self, message):
         '''
@@ -111,6 +112,10 @@ class Report:
         This function is called whenever a reaction is added to a message.
         It is first called in state MESSAGE_IDENTIFIED. 
         '''
+        # Returns if reaction is from the wrong message
+        if self.next_message_id != None and self.next_message_id != reaction.message_id:
+            return []
+
         channel = await self.client.fetch_channel(reaction.channel_id)
         if self.state == State.REPORT_COMPLETE:
             return ["The report has already been completed."]
@@ -215,6 +220,9 @@ class Report:
             "3️⃣: Sexual Service\n" +
             "4️⃣: Other\n"
         )
+
+        self.next_message_id = demand_message.id
+
         await demand_message.add_reaction("1️⃣")
         await demand_message.add_reaction("2️⃣")
         await demand_message.add_reaction("3️⃣")
@@ -248,6 +256,8 @@ class Report:
             "3️⃣: Unclear\n"
         )
 
+        self.next_message_id = threat_message.id
+
         await threat_message.add_reaction("1️⃣")
         await threat_message.add_reaction("2️⃣")
         await threat_message.add_reaction("3️⃣")
@@ -277,6 +287,9 @@ class Report:
             "✅: Yes\n" + 
             "❌: No\n"
         )
+
+        self.next_message_id = context_message.id
+
         await context_message.add_reaction("✅")
         await context_message.add_reaction("❌")
 
@@ -306,6 +319,9 @@ class Report:
             "1️⃣: Safety Threat\n" +
             "2️⃣: Criminal Behavior\n"
         )
+
+        self.next_message_id = danger_message.id
+
         await danger_message.add_reaction("1️⃣")
         await danger_message.add_reaction("2️⃣")
 
@@ -330,6 +346,9 @@ class Report:
             "1️⃣: Suicide/Self-Harm\n" +
             "2️⃣: Violence\n"
         )
+
+        self.next_message_id = safety_message.id
+
         await safety_message.add_reaction("1️⃣")
         await safety_message.add_reaction("2️⃣")
             
@@ -343,6 +362,9 @@ class Report:
             "2️⃣: Child Abuse\n" +
             "3️⃣: Human Exploitation"
         )
+
+        self.next_message_id = criminal_message.id
+
         await criminal_message.add_reaction("1️⃣")
         await criminal_message.add_reaction("2️⃣")
         await criminal_message.add_reaction("3️⃣")
@@ -383,6 +405,8 @@ class Report:
             "3️⃣: Pornography\n"
         )
         
+        self.next_message_id = content_message.id
+
         await content_message.add_reaction("1️⃣")
         await content_message.add_reaction("2️⃣")
         await content_message.add_reaction("3️⃣")
@@ -412,6 +436,8 @@ class Report:
             "3️⃣: Impersonation or Fake Account\n"
         )
         
+        self.next_message_id = content_message.id
+
         await content_message.add_reaction("1️⃣")
         await content_message.add_reaction("2️⃣")
         await content_message.add_reaction("3️⃣")
@@ -461,6 +487,9 @@ class Report:
             "✅: Yes\n" + 
             "❌: No\n"
         )
+
+        self.next_message_id = block_message.id
+
         await block_message.add_reaction("✅")
         await block_message.add_reaction("❌")
         self.state = State.BLOCK_USER
