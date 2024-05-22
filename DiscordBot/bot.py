@@ -10,6 +10,7 @@ from report import Report
 from manual import ManualReview
 from report import Category
 import pdb
+from detection import detect_sextortion
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -115,11 +116,13 @@ class ModBot(discord.Client):
         if not message.channel.name == f'group-{self.group_num}':
             return
 
-        # Forward the message to the mod channel
-        mod_channel = self.mod_channels[message.guild.id]
-        await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
-        scores = self.eval_text(message.content)
-        await mod_channel.send(self.code_format(scores))
+        await detect_sextortion(message)
+
+        # # Forward the message to the mod channel
+        # mod_channel = self.mod_channels[message.guild.id]
+        # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
+        # scores = self.eval_text(message.content)
+        # await mod_channel.send(self.code_format(scores))
 
     # ADDED: This event handler detects when a reaction is made and if the author is reporting
     # TODO: Add message checking on author_id to fix double message problem 
@@ -157,7 +160,6 @@ class ModBot(discord.Client):
             # Add reactions
             await report_message.add_reaction("1️⃣")
             self.reports_to_review[report_message.id] = report.report_data
-
 
 # Helper functions
 
