@@ -92,6 +92,12 @@ class ModBot(discord.Client):
         author_id = message.author.id
         responses = []
 
+        # TO DO: Make report based on the detection result. 
+        if await detect_sextortion(message):
+            print("Sextortion detected.")
+        else:
+            print("No sextortion detected.")
+
         # Only respond to messages if they're part of a reporting flow
         if author_id not in self.reports and not message.content.startswith(Report.START_KEYWORD):
             return
@@ -115,8 +121,6 @@ class ModBot(discord.Client):
         # Only handle messages sent in the "group-#" channel
         if not message.channel.name == f'group-{self.group_num}':
             return
-
-        await detect_sextortion(message)
 
         # # Forward the message to the mod channel
         # mod_channel = self.mod_channels[message.guild.id]
