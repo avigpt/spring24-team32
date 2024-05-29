@@ -87,6 +87,11 @@ class Report:
 
         return []
     
+    async def handle_sextortion_detection(self, message):
+        '''
+        Auto-generate a report for moderator to review.
+        '''
+    
     async def reply_message_id(self, message, fetched_message):
         '''
         Called in State: MESSAGE_IDENTIFIED.

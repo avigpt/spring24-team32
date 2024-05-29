@@ -92,11 +92,12 @@ class ModBot(discord.Client):
         author_id = message.author.id
         responses = []
 
-        # TO DO: Make report based on the detection result. 
-        if await detect_sextortion(message):
-            print("Sextortion detected.")
-        else:
-            print("No sextortion detected.")
+        # Make report based on the detection result. 
+        if await detect_sextortion(message, "gemini") == True:
+            print("Sextortion detected. Creating report.")
+            if author_id not in self.reports:
+                self.reports[author_id] = Report(self)
+            responses = await self.reports[author_id].handle_sextortion_detection(message)
 
         # Only respond to messages if they're part of a reporting flow
         if author_id not in self.reports and not message.content.startswith(Report.START_KEYWORD):

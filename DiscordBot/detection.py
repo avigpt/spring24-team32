@@ -1,27 +1,67 @@
 import vertexai
 from vertexai.generative_models import GenerativeModel, HarmCategory, HarmBlockThreshold
+import requests
 
-async def detect_sextortion(message):
-    # Step 1: Use LLM to detect if message is sextortion.
+async def detect_sextortion_gemini(message, prompt):
+    """
+    Detects sextortion using the Gemini model.
+    """
+    
     project_id = "cs-152-discord-bot"
     vertexai.init(project=project_id, location="us-west1")
     model = GenerativeModel(model_name="gemini-1.0-pro-002")
     
-    print(message.content)
     safety_settings = {
         HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
         HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
         HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
     }
-    prompt = "Please tell me if you detect any sextortion in this message, and respond in one word (yes or no): " + message.content
     
     response = model.generate_content(
-        prompt,
+        prompt + "\n Here's the message: " + message.content,
         safety_settings = safety_settings
     )
 
-    if response.candidates[0].content.parts[0].text == "Yes":
+    if response.candidates[0].content.parts[0].text.lower().startswith("yes"):
         return True
+    return False
+
+async def detect_sextortion_openai(message, prompt):
+    """ 
+    Template for making GPT request.
+    """
+    # openai_api_key = ""
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {openai_api_key}"
+    }
+
+    data = {
+        "model": "gpt-3.5-turbo",
+        "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": message.content}],
+        "temperature": 0.7,
+    }
+
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data).json()
+    print(response)
+    # if response.startswith("yes"):
+        #  return True
+    return False
+
+async def detect_sextortion(message, model):
+    """
+    Called by the bot to detect sextortion in a message.
+    """
+    prompt = "Please tell me if you detect any sextortion in the message below. \
+              Sextortion occurs when the message contains both a request for explicit material and a threat if the receiver does not comply. \
+              For example, asking for nude images alone is not sufficient for sextortion; the message must also include a threat, such as releasing \
+              potentially incriminating or sensitive content, or physical harm. Respond in the following format: \
+              Please only say 'yes' or 'no' to indiciate if you detect sextortion."
+    
+    if model == "gemini":
+        return await detect_sextortion_gemini(message, prompt)
+    elif model == "gpt":
+        return await detect_sextortion_openai(message, prompt)
     return False
 
