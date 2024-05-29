@@ -27,11 +27,11 @@ async def detect_sextortion_gemini(message, prompt):
         return True
     return False
 
-async def detect_sextortion_openai(message, prompt):
+async def detect_sextortion_openai(message, prompt, key):
     """ 
     Template for making GPT request.
     """
-    # openai_api_key = ""
+    openai_api_key = key
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {openai_api_key}"
@@ -40,16 +40,15 @@ async def detect_sextortion_openai(message, prompt):
     data = {
         "model": "gpt-3.5-turbo",
         "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": message.content}],
-        "temperature": 0.7,
+        "temperature": 1,
     }
 
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data).json()
-    print(response)
-    # if response.startswith("yes"):
-        #  return True
+    if response['choices'][0]['message']['content'] == 'yes':
+         return True
     return False
 
-async def detect_sextortion(message, model):
+async def detect_sextortion(message, model, key=None):
     """
     Called by the bot to detect sextortion in a message.
     """
@@ -62,6 +61,6 @@ async def detect_sextortion(message, model):
     if model == "gemini":
         return await detect_sextortion_gemini(message, prompt)
     elif model == "gpt":
-        return await detect_sextortion_openai(message, prompt)
+        return await detect_sextortion_openai(message, prompt, key)
     return False
 

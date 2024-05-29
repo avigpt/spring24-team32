@@ -91,6 +91,7 @@ class Report:
         '''
         Auto-generate a report for moderator to review.
         '''
+        pass
     
     async def reply_message_id(self, message, fetched_message):
         '''
