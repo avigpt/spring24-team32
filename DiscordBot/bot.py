@@ -94,7 +94,7 @@ class ModBot(discord.Client):
         responses = []
 
         # Make report based on the detection result. 
-        if await detect_sextortion(message, "gpt", openai_token) == True:
+        if await detect_sextortion(message, "gemini", openai_token) == True:
             print("Sextortion detected. TODO: Create a report and send to moderator flow.")
 
         # Only respond to messages if they're part of a reporting flow
