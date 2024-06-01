@@ -8,10 +8,11 @@ class Category(Enum):
     SPAM_SCAM = auto()
     DANGER = auto()
 
-class Report:
+class AutomatedReport:
 
-    def __init__(self, message):
-        self.message = None
+    def __init__(self, message, author):
+        self.message = message
+        self.author = author
         self.report_data = {}
     
     async def categorize_abuse_type(self):
@@ -19,28 +20,27 @@ class Report:
         Called in State: MESSAGE_IDENTIFIED.
         This function asks the user to categorize the message. 
         '''
-        prompt = "We found this author and message:" + "```" + self.author_name + ": " + self.message + "```" + \
-            "\nWhy are you reporting this message?\n" + \
+        prompt = "Here is:" + "```" + self.author + ": " + self.message + "```" + \
+            "\nWhich abuse type is this message? Respond with the number.\n" + \
             "1️⃣: Sexual Threat\n" + \
             "2️⃣: Offensive Content\n" +\
             "3️⃣: Spam/Scam\n" + \
             "4️⃣: Imminent Danger\n"
 
         response = await self.query_gemini(self.message, prompt)
-
-        if response == "1️⃣":
+        print(response)
+        if "1️⃣" in response:
             self.report_data["category"] = Category.SEXUAL_THREAT
-        elif response == "2️⃣":
+        elif "2️⃣" in response:
             self.report_data["category"] = Category.OFFENSIVE_CONTENT
-        elif response == "3️⃣":
+        elif "3️⃣" in response:
             self.report_data["category"] = Category.SPAM_SCAM
-        elif response == "4️⃣":
+        elif "4️⃣" in response:
             self.report_data["category"] = Category.DANGER
 
-    async def generate_report(self, reaction):
+    async def generate_report(self):
         '''
-        This function is called whenever a reaction is added to a message.
-        It is first called in state MESSAGE_IDENTIFIED. 
+        Automatically populates self.report_data using Gemini
         '''
         await self.categorize_abuse_type()
 
@@ -73,7 +73,7 @@ class Report:
     async def sexual_threat_l1(self):
         '''
         Called in category SEXUAL_THREAT and state L1.
-        This function asks the user to provide more detail; specifically, for sender demand. 
+        This function asks the model to provide more detail; specifically, for sender demand. 
         '''
 
         prompt = "What is the sender demanding or asking for? \n" \
@@ -93,10 +93,10 @@ class Report:
         elif response == "4️⃣":
             self.report_data["demand"] = "Other"
     
-    async def sexual_threat_l2(self, channel):
+    async def sexual_threat_l2(self):
         '''
         Called in category SEXUAL_THREAT and state L2.
-        This function asks the user to provide more detail; specifically, for sender threat. 
+        This function asks the model to provide more detail; specifically, for sender threat. 
         '''
         prompt = "What is the sender threatening to do? \n" \
             "1️⃣: Physical Harm\n" + \
@@ -115,10 +115,9 @@ class Report:
 
     # Do we add context using gen AI
 
-    async def sexual_threat_l3(self, channel):
+    async def sexual_threat_l3(self):
         '''
-        Called in category SEXUAL_THREAT and state L3.
-        Asks user if they want to give additional context. 
+        Makes the model provide additional context
         '''
         prompt = "Please additional context for the report in 50 words or less"
         
@@ -128,10 +127,10 @@ class Report:
         self.report_data["context_content"] = response
 
     ## Danger Flow ##
-    async def danger_l1(self, channel):
+    async def danger_l1(self):
         '''
         Called in category DANGER and state L1.
-        This function asks the user to provide more detail; specifically, for the nature of the danger. 
+        This function asks the model to provide more detail; specifically, for the nature of the danger. 
         '''
         prompt = "If someone is in immediate danger, please get help before reporting. Don't wait.\n" + \
             "When you are ready to continue, please select the nature of the danger.\n" + \
@@ -145,9 +144,9 @@ class Report:
         elif response == "2️⃣":
             self.report_data["danger_type"] = "Criminal Behavior"
 
-    async def danger_l2_threat(self, channel):
+    async def danger_l2_threat(self):
         '''
-        This function is called in category DANGER and state L2 if the user clicked Safety Threat.
+        This function is called in category DANGER and state L2 if the model clicked Safety Threat.
         '''
         prompt = "Please select the type of safety threat.\n" + \
             "1️⃣: Suicide/Self-Harm\n" + \
@@ -160,9 +159,9 @@ class Report:
         elif response == "2️⃣":
             self.report_data["safety_threat_type"] = "Violence"
             
-    async def danger_l2_criminal(self, channel):
+    async def danger_l2_criminal(self):
         '''
-        This function is called in category DANGER and state L2 if the user clicked Criminal Behavior.
+        This function is called in category DANGER and state L2 if the model clicked Criminal Behavior.
         '''
         prompt = "Please select the type of criminal behavior.\n" + \
             "1️⃣: Theft/Robbery\n" + \
@@ -225,9 +224,15 @@ class Report:
 
     async def query_gemini(self, message, prompt):
         """
-        Detects sextortion using the Gemini model.
+        Queries gemini for content moderation.
         """
         
+        context = "I want to help categorize certain example messages on a social media platform as different kind of policy abuse types." + \
+        "You answers will help in populating report data to help simulate content moderation."
+        f"Here is the current state of the report: {self.report_data}" + \
+        "I am going to ask a question about a message. Please respond."
+        
+
         project_id = "cs-152-discord-bot"
         vertexai.init(project=project_id, location="us-west1")
         model = GenerativeModel(model_name="gemini-1.0-pro-002")
@@ -240,8 +245,11 @@ class Report:
         }
         
         response = model.generate_content(
-            prompt + "\n Here's the message: " + message.content,
-            safety_settings = safety_settings
+            context + prompt + "\n Here's the message: " + message,
+            safety_settings = safety_settings,
+            generation_config = {
+                'temperature': 0
+            }
         )
 
         return response.candidates[0].content.parts[0].text

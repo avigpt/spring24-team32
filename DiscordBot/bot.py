@@ -11,6 +11,7 @@ from manual import ManualReview
 from report import Category
 import pdb
 from detection import detect_sextortion
+from automated_report import AutomatedReport
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -27,7 +28,7 @@ with open(token_path) as f:
     # If you get an error here, it means your token is formatted incorrectly. Did you put it in quotes?
     tokens = json.load(f)
     discord_token = tokens['discord']
-    openai_token = tokens['openai']
+    # openai_token = tokens['openai']
 
 
 class ModBot(discord.Client):
@@ -94,8 +95,10 @@ class ModBot(discord.Client):
         responses = []
 
         # Make report based on the detection result. 
-        if await detect_sextortion(message, "gemini", openai_token) == True:
-            print("Sextortion detected. TODO: Create a report and send to moderator flow.")
+        if await detect_sextortion(message, "gemini", None) == True:
+            automated_report = AutomatedReport(message.content, "NO AUTHOR IMPLEMENTATION YET")
+            await automated_report.generate_report()
+            print(automated_report.report_data)
 
         # Only respond to messages if they're part of a reporting flow
         if author_id not in self.reports and not message.content.startswith(Report.START_KEYWORD):
