@@ -96,9 +96,17 @@ class ModBot(discord.Client):
 
         # Make report based on the detection result. 
         if await detect_sextortion(message, "gemini", None) == True:
-            automated_report = AutomatedReport(message.content, "NO AUTHOR IMPLEMENTATION YET")
+            automated_report = AutomatedReport(message.content, message.author.name)
             await automated_report.generate_report()
-            print(automated_report.report_data)
+            # Adds urgent report to sexual threat or danger reports
+            accept_message = "===========================\nPress 1️⃣ to accept and review this report."
+            if automated_report.report_data["category"] != Category.DANGER and automated_report.report_data["category"] != Category.SEXUAL_THREAT:
+                report_message = await self.mod_channel.send("AI has detected Abuse!\n" + self.format_report(automated_report.report_data) + "\n" + accept_message)
+            else:
+                report_message = await self.mod_channel.send("AI has detected Abuse!\n" + "‼️Urgent Report‼️\n" + self.format_report(automated_report.report_data) + "\n" + accept_message)
+            # Add reactions
+            await report_message.add_reaction("1️⃣")
+            self.reports_to_review[report_message.id] = automated_report.report_data
 
         # Only respond to messages if they're part of a reporting flow
         if author_id not in self.reports and not message.content.startswith(Report.START_KEYWORD):

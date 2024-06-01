@@ -1,19 +1,13 @@
 import vertexai
 from vertexai.generative_models import GenerativeModel, HarmCategory, HarmBlockThreshold
-from enum import Enum, auto
-
-class Category(Enum):
-    SEXUAL_THREAT = auto()
-    OFFENSIVE_CONTENT = auto()
-    SPAM_SCAM = auto()
-    DANGER = auto()
+from report import Category
 
 class AutomatedReport:
 
     def __init__(self, message, author):
         self.message = message
         self.author = author
-        self.report_data = {}
+        self.report_data = {'name': author, 'content': message}
     
     async def categorize_abuse_type(self):
         '''
@@ -28,7 +22,7 @@ class AutomatedReport:
             "4️⃣: Imminent Danger\n"
 
         response = await self.query_gemini(self.message, prompt)
-        print(response)
+
         if "1️⃣" in response:
             self.report_data["category"] = Category.SEXUAL_THREAT
         elif "2️⃣" in response:
@@ -49,8 +43,6 @@ class AutomatedReport:
             await self.sexual_threat_l1() 
             await self.sexual_threat_l2()
             await self.sexual_threat_l3()
-            # We could have genAI generate context for mod to consider
-            # await self.collect_context()
 
         ## Category: Offensive Content ##
         elif self.report_data["category"] == Category.OFFENSIVE_CONTENT:
@@ -84,13 +76,13 @@ class AutomatedReport:
 
         response = await self.query_gemini(self.message, prompt)
 
-        if response == "1️⃣":
+        if "1️⃣" in response:
             self.report_data["demand"] = "Nude Content"
-        elif response == "2️⃣":
+        elif "2️⃣" in response:
             self.report_data["demand"] = "Financial Payment"
-        elif response == "3️⃣":
+        elif "3️⃣" in response:
             self.report_data["demand"] = "Sexual Service"
-        elif response == "4️⃣":
+        elif "4️⃣" in response:
             self.report_data["demand"] = "Other"
     
     async def sexual_threat_l2(self):
@@ -98,18 +90,18 @@ class AutomatedReport:
         Called in category SEXUAL_THREAT and state L2.
         This function asks the model to provide more detail; specifically, for sender threat. 
         '''
-        prompt = "What is the sender threatening to do? \n" \
+        prompt = "What is the sender threatening to do? Please return the emoji.\n" \
             "1️⃣: Physical Harm\n" + \
             "2️⃣: Public Exposure\n" + \
             "3️⃣: Unclear\n"
 
         response = await self.query_gemini(self.message, prompt)
 
-        if response == "1️⃣":
+        if "1️⃣" in response:
             self.report_data["threat"] = "Physical Harm"
-        elif response == "2️⃣":
+        elif "2️⃣" in response:
             self.report_data["threat"] = "Public Exposure"
-        elif response == "3️⃣":
+        elif "3️⃣" in response:
             self.report_data["threat"] = "Unclear"
 
 
@@ -119,7 +111,7 @@ class AutomatedReport:
         '''
         Makes the model provide additional context
         '''
-        prompt = "Please additional context for the report in 50 words or less"
+        prompt = "Please additional context for the report in 10 words or less"
         
         response = await self.query_gemini(self.message, prompt)
 
@@ -132,13 +124,11 @@ class AutomatedReport:
         Called in category DANGER and state L1.
         This function asks the model to provide more detail; specifically, for the nature of the danger. 
         '''
-        prompt = "If someone is in immediate danger, please get help before reporting. Don't wait.\n" + \
-            "When you are ready to continue, please select the nature of the danger.\n" + \
+        prompt = "Please select the nature of the danger.\n" + \
             "1️⃣: Safety Threat\n" + \
             "2️⃣: Criminal Behavior\n"
 
         response = await self.query_gemini(self.message, prompt)
-
         if response == "1️⃣":
             self.report_data["danger_type"] = "Safety Threat"
         elif response == "2️⃣":
@@ -248,7 +238,7 @@ class AutomatedReport:
             context + prompt + "\n Here's the message: " + message,
             safety_settings = safety_settings,
             generation_config = {
-                'temperature': 0
+                'temperature': 0.0
             }
         )
 
