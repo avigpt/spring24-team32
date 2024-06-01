@@ -2,22 +2,6 @@ import vertexai
 from vertexai.generative_models import GenerativeModel, HarmCategory, HarmBlockThreshold
 from enum import Enum, auto
 
-class State(Enum):
-    REPORT_START = auto()
-    AWAITING_MESSAGE = auto()
-    MESSAGE_IDENTIFIED = auto()
-    CATEGORY_IDENTIFIED = auto()
-    BLOCK_USER = auto()
-    REPORT_COMPLETE = auto()
-    REPORT_CANCELLED = auto()
-
-class Level(Enum):
-    L1 = auto()
-    L2 = auto()
-    L3 = auto()
-    L4 = auto()
-    L5 = auto()
-
 class Category(Enum):
     SEXUAL_THREAT = auto()
     OFFENSIVE_CONTENT = auto()
@@ -25,13 +9,8 @@ class Category(Enum):
     DANGER = auto()
 
 class Report:
-    START_KEYWORD = "report"
-    CANCEL_KEYWORD = "cancel"
-    HELP_KEYWORD = "help"
 
     def __init__(self, message):
-        self.state = State.REPORT_START
-        self.level = Level.L1
         self.message = None
         self.report_data = {}
     
