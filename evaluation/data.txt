@@ -1,0 +1,102 @@
+message,label
+"I have compromising photos of you, pay me or I'll release them.",1
+"Hey, let's catch up for coffee sometime.",0
+"Send me money if you don't want your private videos leaked.",1
+"Your order has been shipped and will arrive soon.",0
+"You must transfer $1000 to my account, or I'll send your intimate pictures to your family.",1
+"Reminder: Your appointment is scheduled for tomorrow.",0
+"Click this link to view private photos of you.",1
+"Can you review this document by end of day?",0
+"Pay me $500 in bitcoin or I'll release your personal photos.",1
+"Don't forget to submit your assignment by Friday.",0
+"I hacked your webcam and recorded you. Pay me to delete the video.",1
+"Team meeting is scheduled for 3 PM today.",0
+"Send $2000 to this address or your private information will be shared.",1
+"Please find attached the minutes of the meeting.",0
+"Pay $700 or I'll send your explicit photos to all your contacts.",1
+"Your package has been delivered.",0
+"Transfer money to this account or I'll leak your videos.",1
+"Looking forward to our dinner tomorrow.",0
+"Send me $1500 in gift cards or I'll expose your secrets.",1
+"Can we reschedule our meeting to next week?",0
+"Wire me $600 or I'll share your private messages.",1
+"Don't forget to RSVP for the wedding.",0
+"I have a video of you, pay me or it will go public.",1
+"Meeting has been moved to 2 PM.",0
+"Pay me now or I'll release your intimate photos to the internet.",1
+"Your subscription is about to expire.",0
+"Send $800 to my account or your photos will be shared.",1
+"Please confirm your attendance for the conference.",0
+"Pay $1000 or your compromising photos will be leaked.",1
+"Your account has been successfully created.",0
+"Wire $1200 or your private videos will be made public.",1
+"Don't forget to wish John a happy birthday.",0
+"Transfer $500 or your personal information will be exposed.",1
+"Can you send me the report by end of day?",0
+"Pay $2000 in bitcoin or your explicit photos will be sent to your family.",1
+"Your flight has been booked successfully.",0
+"Send me money or I'll leak your private information.",1
+"Don't forget our lunch meeting tomorrow.",0
+"Pay $3000 or your intimate videos will be shared online.",1
+"Your order has been processed and will be shipped soon.",0
+"Transfer $1000 or I'll send your compromising photos to your friends.",1
+"Reminder: Your doctor's appointment is next week.",0
+"Pay $500 or your private messages will be leaked.",1
+"Your package is out for delivery.",0
+"Wire me money or I'll expose your private photos.",1
+"Can you review the attached document?",0
+"Send $700 or your explicit photos will go public.",1
+"Looking forward to our meeting tomorrow.",0
+"Pay $1500 or your compromising videos will be sent to your contacts.",1
+"Reminder: Your bill is due next week.",0
+"Transfer $900 or your private photos will be exposed.",1
+"Please find the attached invoice.",0
+"Pay $1000 or your intimate videos will be leaked.",1
+"Your order has been shipped.",0
+"Send me $800 or I'll release your private photos.",1
+"Can we reschedule our call?",0
+"Pay $600 or your compromising videos will be shared.",1
+"Don't forget to update your profile.",0
+"Wire me $1200 or I'll expose your private information.",1
+"Your reservation has been confirmed.",0
+"Send $1500 or your explicit photos will be sent to your contacts.",1
+"Looking forward to our meeting on Monday.",0
+"Transfer $700 or your private messages will be made public.",1
+"Your package is ready for pickup.",0
+"Pay me $900 or I'll leak your private videos.",1
+"Reminder: Your subscription is about to expire.",0
+"Send $1000 or your compromising photos will be exposed.",1
+"Please confirm your booking.",0
+"Wire me money or your intimate videos will go public.",1
+"Don't forget to attend the meeting tomorrow.",0
+"Pay $1100 or your private photos will be shared.",1
+"Your flight has been rescheduled.",0
+"Transfer $1300 or your explicit videos will be sent to your family.",1
+"Can you send me the updated report?",0
+"Pay $800 or your compromising videos will be leaked.",1
+"Reminder: Your payment is due soon.",0
+"Send me $1000 or your private information will be exposed.",1
+"Your appointment has been confirmed.",0
+"Wire me $1500 or your intimate photos will be made public.",1
+"Please find attached the updated schedule.",0
+"Pay $600 or your explicit photos will go public.",1
+"Your reservation has been canceled.",0
+"Send $900 or your compromising photos will be sent to your contacts.",1
+"Can we postpone our meeting?",0
+"Transfer $1000 or your private videos will be leaked.",1
+"Don't forget to check your mail.",0
+"Pay me $700 or I'll expose your private messages.",1
+"Your order has been delivered.",0
+"Send $1200 or your intimate videos will be shared online.",1
+"Please confirm your attendance for the event.",0
+"Wire me money or your explicit photos will be exposed.",1
+"Reminder: Your appointment is tomorrow.",0
+"Pay $1300 or your compromising information will go public.",1
+"Your subscription has been renewed.",0
+"Transfer $800 or your private messages will be sent to your family.",1
+"Your flight is on time, please check in.",0
+"Your payment has been received, thank you.",0
+"Can you send me the presentation slides?",0
+"Your parcel has been dispatched.",0
+"Let's plan a trip next month.",0
+"Please update your contact information.",0
