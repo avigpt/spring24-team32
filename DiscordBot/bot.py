@@ -10,7 +10,12 @@ from report import Report
 from manual import ManualReview
 from report import Category
 import pdb
-from detection import detect_sextortion
+from detection import detect_sextortion, detect_danger, detect_offensive_content, detect_spamscam
+from automated_report import AutomatedReport
+from google.cloud import firestore
+
+# Set up Firebase for storing reports and per user statistics.
+db = firestore.Client()
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -27,7 +32,7 @@ with open(token_path) as f:
     # If you get an error here, it means your token is formatted incorrectly. Did you put it in quotes?
     tokens = json.load(f)
     discord_token = tokens['discord']
-    openai_token = tokens['openai']
+    # openai_token = tokens['openai']
 
 
 class ModBot(discord.Client):
@@ -93,13 +98,51 @@ class ModBot(discord.Client):
         author_id = message.author.id
         responses = []
 
-        # Make report based on the detection result. 
-        if await detect_sextortion(message, "gemini", openai_token) == True:
-            print("Sextortion detected. TODO: Create a report and send to moderator flow.")
-
         # Only respond to messages if they're part of a reporting flow
         if author_id not in self.reports and not message.content.startswith(Report.START_KEYWORD):
             return
+
+        # Make report based on the detection result. 
+        if await detect_sextortion(message, "gemini", None) == True:
+            automated_report = AutomatedReport(message.content, message.author.name, Category.SEXUAL_THREAT)
+            await automated_report.generate_report()
+            # Adds urgent report to sexual threat or danger reports
+            accept_message = "===========================\nPress 1️⃣ to accept and review this report."
+            report_message = await self.mod_channel.send("AI has detected Abuse!\n" + "‼️Urgent Report‼️\n" + self.format_report(automated_report.report_data) + "\n" + accept_message)
+            # Add reactions
+            await report_message.add_reaction("1️⃣")
+            self.add_document("reports", str(report_message.id), automated_report)
+            self.reports_to_review[report_message.id] = automated_report.report_data
+        elif await detect_offensive_content(message):
+            automated_report = AutomatedReport(message.content, message.author.name, Category.OFFENSIVE_CONTENT)
+            await automated_report.generate_report()
+            # Adds urgent report to sexual threat or danger reports
+            accept_message = "===========================\nPress 1️⃣ to accept and review this report."
+            report_message = await self.mod_channel.send(self.format_report(automated_report.report_data) + "\n" + accept_message)
+            # Add reactions
+            await report_message.add_reaction("1️⃣")
+            self.add_document("reports", str(report_message.id), automated_report)
+            self.reports_to_review[report_message.id] = automated_report.report_data
+        elif await detect_danger(message):
+            automated_report = AutomatedReport(message.content, message.author.name, Category.DANGER)
+            await automated_report.generate_report()
+            # Adds urgent report to sexual threat or danger reports
+            accept_message = "===========================\nPress 1️⃣ to accept and review this report."
+            report_message = await self.mod_channel.send("AI has detected Abuse!\n" + "‼️Urgent Report‼️\n" + self.format_report(automated_report.report_data) + "\n" + accept_message)
+            # Add reactions
+            await report_message.add_reaction("1️⃣")
+            self.add_document("reports", str(report_message.id), automated_report)
+            self.reports_to_review[report_message.id] = automated_report.report_data
+        elif await detect_spamscam(message):
+            automated_report = AutomatedReport(message.content, message.author.name, Category.SPAM_SCAM)
+            await automated_report.generate_report()
+            # Adds urgent report to sexual threat or danger reports
+            accept_message = "===========================\nPress 1️⃣ to accept and review this report."
+            report_message = await self.mod_channel.send(self.format_report(automated_report.report_data) + "\n" + accept_message)
+            # Add reactions
+            await report_message.add_reaction("1️⃣")
+            self.add_document("reports", str(report_message.id), automated_report)
+            self.reports_to_review[report_message.id] = automated_report.report_data
 
         # If we don't currently have an active report for this user, add one
         if author_id not in self.reports:
@@ -162,6 +205,7 @@ class ModBot(discord.Client):
                 report_message = await self.mod_channel.send("‼️Urgent Report‼️\n" + self.format_report(report.report_data) + "\n" + accept_message)
             # Add reactions
             await report_message.add_reaction("1️⃣")
+            self.add_document("reports", str(report_message.id), report)
             self.reports_to_review[report_message.id] = report.report_data
 
 # Helper functions
@@ -269,6 +313,13 @@ class ModBot(discord.Client):
         shown in the mod channel. 
         '''
         return "Evaluated: '" + text+ "'"
+    
+    # Function to add document to Firestore
+    def add_document(collection_name, document_id, data):
+        collection_ref = db.collection(collection_name)
+        document_ref = collection_ref.document(document_id)
+        document_ref.set(data)
+        print(f'Document added with ID: {document_id}')
 
 
 client = ModBot()
