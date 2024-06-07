@@ -4,39 +4,15 @@ from report import Category
 
 class AutomatedReport:
 
-    def __init__(self, message, author):
+    def __init__(self, message, author, category):
         self.message = message
         self.author = author
-        self.report_data = {'name': author, 'content': message}
-    
-    async def categorize_abuse_type(self):
-        '''
-        Called in State: MESSAGE_IDENTIFIED.
-        This function asks the user to categorize the message. 
-        '''
-        prompt = "Here is:" + "```" + self.author + ": " + self.message + "```" + \
-            "\nWhich abuse type is this message? Respond with the number.\n" + \
-            "1️⃣: Sexual Threat\n" + \
-            "2️⃣: Offensive Content\n" +\
-            "3️⃣: Spam/Scam\n" + \
-            "4️⃣: Imminent Danger\n"
-
-        response = await self.query_gemini(self.message, prompt)
-
-        if "1️⃣" in response:
-            self.report_data["category"] = Category.SEXUAL_THREAT
-        elif "2️⃣" in response:
-            self.report_data["category"] = Category.OFFENSIVE_CONTENT
-        elif "3️⃣" in response:
-            self.report_data["category"] = Category.SPAM_SCAM
-        elif "4️⃣" in response:
-            self.report_data["category"] = Category.DANGER
+        self.report_data = {'name': author, 'content': message, 'category': category}
 
     async def generate_report(self):
         '''
         Automatically populates self.report_data using Gemini
         '''
-        await self.categorize_abuse_type()
 
         ## Category: Sexual Threat ##
         if self.report_data["category"] == Category.SEXUAL_THREAT:
@@ -129,9 +105,9 @@ class AutomatedReport:
             "2️⃣: Criminal Behavior\n"
 
         response = await self.query_gemini(self.message, prompt)
-        if response == "1️⃣":
+        if "1️⃣" in response:
             self.report_data["danger_type"] = "Safety Threat"
-        elif response == "2️⃣":
+        elif "2️⃣" in response:
             self.report_data["danger_type"] = "Criminal Behavior"
 
     async def danger_l2_threat(self):
@@ -144,9 +120,9 @@ class AutomatedReport:
 
         response = await self.query_gemini(self.message, prompt)
 
-        if response == "1️⃣":
+        if "1️⃣" in response:
             self.report_data["safety_threat_type"] = "Suicide/Self-Harm"
-        elif response == "2️⃣":
+        elif "2️⃣" in response:
             self.report_data["safety_threat_type"] = "Violence"
             
     async def danger_l2_criminal(self):
@@ -160,11 +136,11 @@ class AutomatedReport:
     
         response = await self.query_gemini(self.message, prompt)
 
-        if response == "1️⃣":
+        if "1️⃣" in response:
             self.report_data["criminal_behavior_type"] = "Theft/Robbery"
-        elif response == "2️⃣":
+        elif "2️⃣" in response:
             self.report_data["criminal_behavior_type"] = "Child Abuse"
-        elif response == "3️⃣":
+        elif "3️⃣" in response:
             self.report_data["criminal_behavior_type"] = "Human Exploitation"
         
     ## Offensive Content ## 
@@ -176,11 +152,11 @@ class AutomatedReport:
 
         response = await self.query_gemini(self.message, prompt)
 
-        if response == "1️⃣":
+        if "1️⃣" in response:
             self.report_data["offensive_content_type"] = "Violent Content"
-        elif response == "2️⃣":
+        elif "2️⃣" in response:
             self.report_data["offensive_content_type"] = "Hateful Content"
-        elif response == "3️⃣":
+        elif "3️⃣" in response:
             self.report_data["offensive_content_type"] = "Pornography" 
         
     ## Spam/Scam ##
@@ -192,11 +168,11 @@ class AutomatedReport:
         
         response = await self.query_gemini(self.message, prompt)
 
-        if response == "1️⃣":
+        if "1️⃣" in response:
             self.report_data["spam_scam_content_type"] = "Spam"
-        elif response == "2️⃣":
+        elif "2️⃣" in response:
             self.report_data["spam_scam_content_type"] = "Fraud"
-        elif response == "3️⃣":
+        elif "3️⃣" in response:
             self.report_data["spam_scam_content_type"] = "Impersonation or Fake Account"
             
     ### Helper Functions ###
